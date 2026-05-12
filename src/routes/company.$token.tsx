@@ -8,7 +8,7 @@ import { getToken } from "@/services/tokens";
 import { getCompany, searchCompanies, upsertCompany } from "@/services/companies";
 import { submitDeclaration } from "@/services/declarations";
 import { currentIntake } from "@/lib/intake";
-import { BENEFIT_OPTIONS } from "@/lib/partner-form-benefits";
+import { BENEFIT_OPTIONS, benefitLabel } from "@/lib/partner-form-benefits";
 import { type Company, type LinkToken } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -290,6 +290,8 @@ function PartnerRegistrationForm({
           benefits,
           dataConsent: form.dataConsent,
         },
+        partnerFormFullState: { ...form },
+        partnerBenefitLabels: benefits.map(benefitLabel),
       });
       return company;
     },

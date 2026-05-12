@@ -92,6 +92,9 @@ export interface MergedInternship {
   declaredIntern?: DeclaredIntern;
   intake: Intake;
   status: "matched" | "student_only" | "company_only";
+  /** Dossier complet au moment du match (étudiant, soumission, entreprise+contacts, stagiaire déclaré, snapshot partenaire). */
+  conventionRecord?: Record<string, unknown>;
+  partnerSnapshotId?: string;
 }
 
 export type LinkToken = {

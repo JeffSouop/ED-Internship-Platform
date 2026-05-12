@@ -14,12 +14,17 @@ export async function listDeclarationsForCompany(companyId: string) {
   return apiJson<CompanyDeclaration[]>(`/api/declarations?${params.toString()}`);
 }
 
-export async function submitDeclaration(input: {
+export type SubmitDeclarationPayload = {
   companyId: string;
   intake: Intake;
   interns: DeclaredIntern[];
   partnerFormExtras?: Record<string, unknown>;
-}): Promise<CompanyDeclaration> {
+  /** Copie du formulaire au clic (camelCase) — alimente la table partner_intake_submission_snapshot. */
+  partnerFormFullState?: Record<string, unknown>;
+  partnerBenefitLabels?: string[];
+};
+
+export async function submitDeclaration(input: SubmitDeclarationPayload): Promise<CompanyDeclaration> {
   await delay();
   return apiJson<CompanyDeclaration>("/api/declarations", {
     method: "POST",

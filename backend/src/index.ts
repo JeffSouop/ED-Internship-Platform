@@ -32,6 +32,7 @@ import {
   programmeLabelToCode,
 } from "./mappers.js";
 import { mergeContractMissions } from "./contract-form-meta.js";
+import { insertPartnerIntakeSnapshot } from "./partner-snapshot.js";
 
 const { Pool } = pg;
 
@@ -907,6 +908,9 @@ app.post("/api/declarations", async (req, res) => {
     intake: Intake;
     interns: DeclaredIntern[];
     partnerFormExtras?: Record<string, unknown>;
+    /** État complet du formulaire partenaire au moment de l’envoi (persisté en colonnes + raw_payload). */
+    partnerFormFullState?: Record<string, unknown>;
+    partnerBenefitLabels?: string[];
   };
   if (!body.companyId || !body.intake || !body.interns) {
     res.status(400).json({ error: "companyId, intake et interns requis" });
@@ -927,12 +931,16 @@ app.post("/api/declarations", async (req, res) => {
     );
     const declId = decl[0].id as string;
     await client.query(`DELETE FROM careers.declared_intern WHERE declaration_id = $1::uuid`, [declId]);
+    const fullState = (body.partnerFormFullState ?? {}) as Record<string, unknown>;
+    const benefitLabels = Array.isArray(body.partnerBenefitLabels)
+      ? (body.partnerBenefitLabels as string[]).filter((x) => typeof x === "string")
+      : [];
     for (const intern of body.interns) {
-      await client.query(
+      const insDi = await client.query(
         `INSERT INTO careers.declared_intern (
            declaration_id, student_id, first_name, last_name, internship_type,
            position, start_date, end_date, tutor_name, tutor_email, tutor_phone
-         ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
         [
           declId,
           intern.studentId,
@@ -947,6 +955,15 @@ app.post("/api/declarations", async (req, res) => {
           intern.tutorPhone ?? null,
         ],
       );
+      const declaredInternId = insDi.rows[0].id as string;
+      await insertPartnerIntakeSnapshot(client, {
+        declarationId: declId,
+        declaredInternId,
+        companyId: body.companyId,
+        intern,
+        fullState,
+        benefitLabels,
+      });
     }
     await client.query("COMMIT");
     const out = await loadDeclarationRow(declId);
@@ -966,7 +983,8 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
     `SELECT match_status, student_id, student_uuid, submission_id, company_id, declared_intern_id,
             season::text AS season, year,
             student_full_name, student_email, company_name, company_country,
-            position, start_date, end_date, tutor_name, tutor_email
+            position, start_date, end_date, tutor_name, tutor_email,
+            partner_snapshot_id::text AS partner_snapshot_id, convention_record
        FROM careers.v_merged_overview`,
   );
 
@@ -1018,6 +1036,11 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
       declaredIntern,
       intake,
       status: r.match_status as "matched" | "student_only" | "company_only",
+      conventionRecord:
+        r.convention_record && typeof r.convention_record === "object"
+          ? (r.convention_record as Record<string, unknown>)
+          : undefined,
+      partnerSnapshotId: (r.partner_snapshot_id as string) || undefined,
     });
   }
 
