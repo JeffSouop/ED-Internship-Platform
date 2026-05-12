@@ -1,0 +1,71 @@
+# Chaîne type TaTi (même idée produit différente, sans LLM/MCP ici) :
+#
+#   Navigateur ──► une seule origine « app » (UI + routes /api via nginx dans « ui »)
+#                       │
+#                       ├──► api (Express) ──► postgres (données métier)
+#                       │
+#                       └──► pas de connexion navigateur → Postgres : tout passe par /api.
+#
+# Ports exposés sur l’hôte :
+#   8080 → entrée utilisateur (pages + /api proxifié vers le backend).
+#   4000 → API seule (debug / outils), optionnel au quotidien.
+#   5433 → Postgres (debug / pg_dump / scripts locaux), pas pour le front.
+#
+# Les futurs services externes (webhooks, autres APIs) se brancheraient sur « api » par variables
+# d’environnement — comme les MCP sont appelés uniquement par le backend TaTi, pas par le navigateur.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ed-internship-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ducasse_careers
+      POSTGRES_USER: ducasse
+      POSTGRES_PASSWORD: ducasse_local_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/db/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed_demo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ducasse -d ducasse_careers"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ed-internship-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ducasse:ducasse_local_dev@postgres:5432/ducasse_careers
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ducasse2026}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-local-dev-secret}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui
+    container_name: ed-internship-ui
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      HOME: /tmp
+      WRANGLER_SEND_METRICS: "false"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
