@@ -6,7 +6,8 @@ export type SubmissionStatus =
   | "pending"
   | "changes_requested"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "superseded";
 
 export interface Student {
   id: string; // studentId — pivot for joins
@@ -39,6 +40,17 @@ export interface StudentSubmission {
   reviewerComment?: string;
   submittedAt: string;
   reviewedAt?: string;
+  campusInputLabel?: string;
+  programmeInputLabel?: string;
+  careerHeadName?: string;
+  acceptedTerms?: boolean;
+  personalEmail?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  studentAddress?: string;
+  studentPostalCode?: string;
+  studentCity?: string;
+  civilLiabilityInsuranceRef?: string;
 }
 
 export interface CompanyContact {
@@ -96,7 +108,6 @@ export interface MergedInternship {
   intake: Intake;
   status: "matched" | "student_only" | "company_only";
   conventionRecord?: Record<string, unknown>;
-  partnerSnapshotId?: string;
 }
 
 export type LinkToken = {

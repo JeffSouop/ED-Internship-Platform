@@ -31,8 +31,7 @@ import {
   mapSubmissionRow,
   programmeLabelToCode,
 } from "./mappers.js";
-import { mergeContractMissions } from "./contract-form-meta.js";
-import { insertPartnerIntakeSnapshot } from "./partner-snapshot.js";
+import { insertDeclaredInternWithFullIntake } from "./partner-snapshot.js";
 
 const { Pool } = pg;
 
@@ -124,6 +123,9 @@ async function loadSubmission(id: string): Promise<StudentSubmission | undefined
             ss.position, ss.missions, ss.start_date, ss.end_date,
             ss.tutor_name, ss.tutor_email, ss.status::text AS status,
             ss.reviewer_comment, ss.submitted_at, ss.reviewed_at,
+            ss.campus_input_label, ss.programme_input_label, ss.career_head_name, ss.accepted_terms,
+            ss.personal_email, ss.company_email, ss.company_phone,
+            ss.student_address, ss.student_postal_code, ss.student_city, ss.civil_liability_insurance_ref,
             st.first_name, st.last_name, st.email, st.phone,
             c.code AS campus_code, c.name AS campus_name, pr.name AS programme_name, p.season, p.year
        FROM careers.student_submission ss
@@ -144,6 +146,9 @@ async function loadSubmissionByStudentId(studentId: string): Promise<StudentSubm
             ss.position, ss.missions, ss.start_date, ss.end_date,
             ss.tutor_name, ss.tutor_email, ss.status::text AS status,
             ss.reviewer_comment, ss.submitted_at, ss.reviewed_at,
+            ss.campus_input_label, ss.programme_input_label, ss.career_head_name, ss.accepted_terms,
+            ss.personal_email, ss.company_email, ss.company_phone,
+            ss.student_address, ss.student_postal_code, ss.student_city, ss.civil_liability_insurance_ref,
             st.first_name, st.last_name, st.email, st.phone,
             c.code AS campus_code, c.name AS campus_name, pr.name AS programme_name, p.season, p.year
        FROM careers.student_submission ss
@@ -151,7 +156,7 @@ async function loadSubmissionByStudentId(studentId: string): Promise<StudentSubm
        JOIN careers.promotion p ON p.id = ss.promotion_id
        JOIN careers.campus c ON c.id = p.campus_id
        JOIN careers.programme pr ON pr.id = p.programme_id
-      WHERE ss.student_id = $1 AND ss.status <> 'rejected'
+      WHERE ss.student_id = $1 AND ss.status NOT IN ('rejected', 'superseded')
       ORDER BY ss.submitted_at DESC
       LIMIT 1`,
     [studentId],
@@ -361,6 +366,9 @@ app.get("/api/submissions", requireAdmin, async (_req, res) => {
             ss.position, ss.missions, ss.start_date, ss.end_date,
             ss.tutor_name, ss.tutor_email, ss.status::text AS status,
             ss.reviewer_comment, ss.submitted_at, ss.reviewed_at,
+            ss.campus_input_label, ss.programme_input_label, ss.career_head_name, ss.accepted_terms,
+            ss.personal_email, ss.company_email, ss.company_phone,
+            ss.student_address, ss.student_postal_code, ss.student_city, ss.civil_liability_insurance_ref,
             st.first_name, st.last_name, st.email, st.phone,
             c.code AS campus_code, c.name AS campus_name, pr.name AS programme_name, p.season, p.year
        FROM careers.student_submission ss
@@ -418,21 +426,19 @@ app.post("/api/submissions", async (req, res) => {
     res.status(400).json({ error: "student.id requis" });
     return;
   }
+  const studentIdPivot = String(body.student.id).trim();
+  const emailStore = String(body.student.email ?? "").trim();
+  if (!studentIdPivot || !emailStore) {
+    res.status(400).json({ error: "Numéro étudiant et email requis" });
+    return;
+  }
+  const emailLower = emailStore.toLowerCase();
+
   const { season, year } = intakeToSeasonYear(body.student.promotion);
   const campusCode = campusLabelToCode(body.student.campus);
   const progCode = programmeLabelToCode(body.student.programme);
 
-  const missionsMerged = mergeContractMissions(body.missions, {
-    careerHeadName: body.careerHeadName,
-    acceptedTerms: body.acceptedTerms === true,
-    personalEmail: body.personalEmail,
-    studentAddress: body.studentAddress,
-    studentPostalCode: body.studentPostalCode,
-    studentCity: body.studentCity,
-    companyEmail: body.companyEmail,
-    companyPhone: body.companyPhone,
-    civilLiabilityInsurance: body.civilLiabilityInsurance,
-  });
+  const missionsNarrative = (body.missions ?? "").trim();
 
   const birthDateParam =
     body.birthDate && String(body.birthDate).trim() !== "" ? body.birthDate : null;
@@ -454,20 +460,33 @@ app.post("/api/submissions", async (req, res) => {
     }
     const promotionId = promos[0].id as number;
 
+    const { rows: emailTaken } = await client.query(
+      `SELECT student_id FROM careers.student
+        WHERE lower(trim(email)) = $1 AND lower(trim(student_id)) <> lower(trim($2))`,
+      [emailLower, studentIdPivot],
+    );
+    if (emailTaken[0]) {
+      await client.query("ROLLBACK");
+      res.status(409).json({
+        error: `Cet email est déjà enregistré pour le numéro étudiant « ${emailTaken[0].student_id} ». Utilisez exactement ce numéro étudiant sur le formulaire, ou contactez le service stages.`,
+      });
+      return;
+    }
+
     const upSt = await client.query(
       `UPDATE careers.student
           SET promotion_id = $1, first_name = $2, last_name = $3, email = $4, phone = $5,
               birth_date = COALESCE($6::date, birth_date),
               updated_at = now()
-        WHERE student_id = $7`,
+        WHERE lower(trim(student_id)) = lower(trim($7))`,
       [
         promotionId,
         body.student.firstName,
         body.student.lastName,
-        body.student.email,
+        emailStore,
         body.student.phone ?? null,
         birthDateParam,
-        body.student.id,
+        studentIdPivot,
       ],
     );
     if (upSt.rowCount === 0) {
@@ -475,20 +494,21 @@ app.post("/api/submissions", async (req, res) => {
         `INSERT INTO careers.student (student_id, promotion_id, first_name, last_name, email, phone, birth_date)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          body.student.id,
+          studentIdPivot,
           promotionId,
           body.student.firstName,
           body.student.lastName,
-          body.student.email,
+          emailStore,
           body.student.phone ?? null,
           birthDateParam,
         ],
       );
     }
 
-    const { rows: stu } = await client.query(`SELECT id FROM careers.student WHERE student_id = $1`, [
-      body.student.id,
-    ]);
+    const { rows: stu } = await client.query(
+      `SELECT id FROM careers.student WHERE lower(trim(student_id)) = lower(trim($1))`,
+      [studentIdPivot],
+    );
     if (!stu[0]) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: "Étudiant introuvable après mise à jour" });
@@ -496,70 +516,56 @@ app.post("/api/submissions", async (req, res) => {
     }
     const studentUuid = stu[0].id as string;
 
-    const { rows: existing } = await client.query(
-      `SELECT id FROM careers.student_submission
-        WHERE student_uuid = $1 AND promotion_id = $2 AND status <> 'rejected'`,
+    await client.query(
+      `UPDATE careers.student_submission
+          SET status = 'superseded'::careers.submission_status, updated_at = now()
+        WHERE student_uuid = $1 AND promotion_id = $2
+          AND status IN ('pending'::careers.submission_status, 'changes_requested'::careers.submission_status)`,
       [studentUuid, promotionId],
     );
 
-    let submissionId: string;
-    if (existing[0]) {
-      submissionId = existing[0].id as string;
-      await client.query(
-        `UPDATE careers.student_submission SET
-           student_id = $1, company_name = $2, company_country = $3, company_city = $4,
-           position = $5, missions = $6, start_date = $7, end_date = $8,
-           tutor_name = $9, tutor_email = $10,
-           status = 'pending'::careers.submission_status,
-           reviewer_comment = NULL, reviewed_at = NULL, reviewed_by = NULL,
-           submitted_at = now(), updated_at = now()
-         WHERE id = $11`,
-        [
-          body.student.id,
-          body.companyName,
-          body.companyCountry,
-          body.companyCity ?? null,
-          body.position,
-          missionsMerged,
-          body.startDate,
-          body.endDate,
-          body.tutorName,
-          body.tutorEmail,
-          submissionId,
-        ],
-      );
-    } else {
-      const ins = await client.query(
-        `INSERT INTO careers.student_submission (
+    const ins = await client.query(
+      `INSERT INTO careers.student_submission (
            student_uuid, student_id, promotion_id,
            company_name, company_country, company_city,
            position, missions, start_date, end_date,
-           tutor_name, tutor_email, status, submitted_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending'::careers.submission_status, now())
-         RETURNING id`,
-        [
-          studentUuid,
-          body.student.id,
-          promotionId,
-          body.companyName,
-          body.companyCountry,
-          body.companyCity ?? null,
-          body.position,
-          missionsMerged,
-          body.startDate,
-          body.endDate,
-          body.tutorName,
-          body.tutorEmail,
-        ],
-      );
-      submissionId = ins.rows[0].id as string;
-    }
-
-    await client.query(
-      `INSERT INTO careers.internship_form_response (student_id_text, payload, submission_id)
-       VALUES ($1, $2::jsonb, $3)`,
-      [body.student.id, JSON.stringify(req.body), submissionId],
+           tutor_name, tutor_email, status, submitted_at,
+           campus_input_label, programme_input_label, career_head_name, accepted_terms,
+           personal_email, company_email, company_phone,
+           student_address, student_postal_code, student_city,
+           civil_liability_insurance_ref
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9::date,$10::date,$11,$12,
+           'pending'::careers.submission_status, now(),
+           $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+         ) RETURNING id`,
+      [
+        studentUuid,
+        studentIdPivot,
+        promotionId,
+        body.companyName,
+        body.companyCountry,
+        body.companyCity ?? null,
+        body.position,
+        missionsNarrative,
+        body.startDate,
+        body.endDate,
+        body.tutorName,
+        body.tutorEmail,
+        body.student.campus,
+        body.student.programme,
+        body.careerHeadName ?? null,
+        body.acceptedTerms === true,
+        body.personalEmail ?? null,
+        body.companyEmail ?? null,
+        body.companyPhone ?? null,
+        body.studentAddress ?? null,
+        body.studentPostalCode ?? null,
+        body.studentCity ?? null,
+        body.civilLiabilityInsurance ?? null,
+      ],
     );
+    const submissionId = ins.rows[0]!.id as string;
 
     await client.query("COMMIT");
     const out = await loadSubmission(submissionId);
@@ -567,31 +573,94 @@ app.post("/api/submissions", async (req, res) => {
   } catch (e) {
     await client.query("ROLLBACK");
     console.error(e);
+    const pg = e as { code?: string; constraint?: string };
+    if (pg.code === "23505" && String(pg.constraint ?? "").includes("student_email")) {
+      res.status(409).json({
+        error:
+          "Cet email est déjà associé à un autre dossier étudiant. Vérifiez votre numéro étudiant (Symplicity) et l’email école, ou contactez le service stages.",
+      });
+      return;
+    }
     res.status(500).json({ error: "Erreur serveur" });
   } finally {
     client.release();
   }
 });
 
-/** Journal brut : chaque envoi du formulaire convention (audit). */
+/** Chaque ligne = un enregistrement complet `student_submission` (historique des envois). */
 app.get("/api/admin/form-responses", requireAdmin, async (req, res) => {
   const raw = Number(req.query.limit);
   const limit = Number.isFinite(raw) && raw > 0 ? Math.min(raw, 500) : 100;
   const { rows } = await pool.query(
-    `SELECT id, student_id_text, submission_id, created_at, payload
-       FROM careers.internship_form_response
-      ORDER BY created_at DESC
+    `SELECT ss.id, ss.student_id, ss.submitted_at, ss.status::text AS status,
+            ss.company_name, ss.company_country, ss.company_city, ss.position, ss.missions,
+            ss.start_date, ss.end_date, ss.tutor_name, ss.tutor_email,
+            ss.campus_input_label, ss.programme_input_label, ss.career_head_name, ss.accepted_terms,
+            ss.personal_email, ss.company_email, ss.company_phone,
+            ss.student_address, ss.student_postal_code, ss.student_city, ss.civil_liability_insurance_ref
+       FROM careers.student_submission ss
+      ORDER BY ss.submitted_at DESC
       LIMIT $1`,
     [limit],
   );
+  const iso = (d: Date | string) =>
+    typeof d === "string" ? new Date(d).toISOString() : d.toISOString();
   res.json(
-    rows.map((r: { id: string; student_id_text: string; submission_id: string | null; created_at: Date; payload: unknown }) => ({
-      id: r.id,
-      studentIdText: r.student_id_text,
-      submissionId: r.submission_id ?? undefined,
-      createdAt: new Date(r.created_at).toISOString(),
-      payload: r.payload,
-    })),
+    rows.map(
+      (r: {
+        id: string;
+        student_id: string;
+        submitted_at: Date;
+        status: string;
+        company_name: string;
+        company_country: string;
+        company_city: string | null;
+        position: string;
+        missions: string | null;
+        start_date: Date | string;
+        end_date: Date | string;
+        tutor_name: string | null;
+        tutor_email: string | null;
+        campus_input_label: string | null;
+        programme_input_label: string | null;
+        career_head_name: string | null;
+        accepted_terms: boolean | null;
+        personal_email: string | null;
+        company_email: string | null;
+        company_phone: string | null;
+        student_address: string | null;
+        student_postal_code: string | null;
+        student_city: string | null;
+        civil_liability_insurance_ref: string | null;
+      }) => ({
+        id: r.id,
+        studentId: r.student_id,
+        submittedAt: iso(r.submitted_at),
+        status: r.status,
+        record: {
+          companyName: r.company_name,
+          companyCountry: r.company_country,
+          companyCity: r.company_city ?? undefined,
+          position: r.position,
+          missions: r.missions ?? "",
+          startDate: typeof r.start_date === "string" ? r.start_date.slice(0, 10) : r.start_date.toISOString().slice(0, 10),
+          endDate: typeof r.end_date === "string" ? r.end_date.slice(0, 10) : r.end_date.toISOString().slice(0, 10),
+          tutorName: r.tutor_name ?? "",
+          tutorEmail: r.tutor_email ?? "",
+          campusInputLabel: r.campus_input_label ?? undefined,
+          programmeInputLabel: r.programme_input_label ?? undefined,
+          careerHeadName: r.career_head_name ?? undefined,
+          acceptedTerms: r.accepted_terms === true,
+          personalEmail: r.personal_email ?? undefined,
+          companyEmail: r.company_email ?? undefined,
+          companyPhone: r.company_phone ?? undefined,
+          studentAddress: r.student_address ?? undefined,
+          studentPostalCode: r.student_postal_code ?? undefined,
+          studentCity: r.student_city ?? undefined,
+          civilLiabilityInsuranceRef: r.civil_liability_insurance_ref ?? undefined,
+        },
+      }),
+    ),
   );
 });
 
@@ -827,7 +896,20 @@ app.post("/api/companies", async (req, res) => {
     `INSERT INTO careers.company (
        name, country, sector, size_bucket, trade_name, siret, insurance_company, insurance_policy,
        address, city, postal_code, website
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     ON CONFLICT (name, country) DO UPDATE SET
+       sector = EXCLUDED.sector,
+       size_bucket = EXCLUDED.size_bucket,
+       trade_name = EXCLUDED.trade_name,
+       siret = EXCLUDED.siret,
+       insurance_company = EXCLUDED.insurance_company,
+       insurance_policy = EXCLUDED.insurance_policy,
+       address = EXCLUDED.address,
+       city = EXCLUDED.city,
+       postal_code = EXCLUDED.postal_code,
+       website = EXCLUDED.website,
+       updated_at = now()
+     RETURNING id`,
     [
       body.name,
       body.country,
@@ -852,11 +934,15 @@ app.post("/api/companies", async (req, res) => {
 // ——— Declarations ———
 async function loadDeclarationRow(declId: string): Promise<CompanyDeclaration | undefined> {
   const { rows } = await pool.query(
-    `SELECT cd.id, cd.company_id::text, cd.season::text AS season, cd.year, cd.submitted_at, cd.partner_form_extras
+    `SELECT cd.id, cd.company_id::text, cd.season::text AS season, cd.year, cd.submitted_at
        FROM careers.company_declaration cd WHERE cd.id = $1`,
     [declId],
   );
   if (!rows[0]) return undefined;
+  const { rows: extrasRow } = await pool.query(
+    `SELECT partner_form_extras FROM careers.declared_intern WHERE declaration_id = $1 LIMIT 1`,
+    [declId],
+  );
   const { rows: interns } = await pool.query(
     `SELECT student_id, first_name, last_name, internship_type, position, start_date, end_date,
             tutor_name, tutor_email, tutor_phone
@@ -869,15 +955,18 @@ async function loadDeclarationRow(declId: string): Promise<CompanyDeclaration | 
     season: string;
     year: number;
     submitted_at: Date;
-    partner_form_extras: unknown;
   };
+  const rawExtras = extrasRow[0]?.partner_form_extras;
   return {
     id: r.id,
     companyId: r.company_id,
     intake: dbSeasonYearToIntake(r.season, r.year),
     interns: interns.map((i) => mapDeclaredInternRow(i)),
     submittedAt: r.submitted_at.toISOString(),
-    partnerFormExtras: (r.partner_form_extras as Record<string, unknown>) ?? undefined,
+    partnerFormExtras:
+      rawExtras && typeof rawExtras === "object" && rawExtras !== null && Object.keys(rawExtras).length > 0
+        ? (rawExtras as Record<string, unknown>)
+        : undefined,
   };
 }
 
@@ -921,13 +1010,12 @@ app.post("/api/declarations", async (req, res) => {
   try {
     await client.query("BEGIN");
     const { rows: decl } = await client.query(
-      `INSERT INTO careers.company_declaration (company_id, season, year, partner_form_extras, submitted_at, updated_at)
-       VALUES ($1::uuid, $2::careers.intake_season, $3, $4::jsonb, now(), now())
+      `INSERT INTO careers.company_declaration (company_id, season, year, submitted_at, updated_at)
+       VALUES ($1::uuid, $2::careers.intake_season, $3, now(), now())
        ON CONFLICT (company_id, season, year)
-       DO UPDATE SET submitted_at = now(), updated_at = now(),
-             partner_form_extras = EXCLUDED.partner_form_extras
+       DO UPDATE SET submitted_at = now(), updated_at = now()
        RETURNING id`,
-      [body.companyId, season, year, JSON.stringify(body.partnerFormExtras ?? {})],
+      [body.companyId, season, year],
     );
     const declId = decl[0].id as string;
     await client.query(`DELETE FROM careers.declared_intern WHERE declaration_id = $1::uuid`, [declId]);
@@ -935,34 +1023,15 @@ app.post("/api/declarations", async (req, res) => {
     const benefitLabels = Array.isArray(body.partnerBenefitLabels)
       ? (body.partnerBenefitLabels as string[]).filter((x) => typeof x === "string")
       : [];
+    const partnerFormExtras = (body.partnerFormExtras ?? {}) as Record<string, unknown>;
     for (const intern of body.interns) {
-      const insDi = await client.query(
-        `INSERT INTO careers.declared_intern (
-           declaration_id, student_id, first_name, last_name, internship_type,
-           position, start_date, end_date, tutor_name, tutor_email, tutor_phone
-         ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-        [
-          declId,
-          intern.studentId,
-          intern.firstName ?? null,
-          intern.lastName ?? null,
-          intern.internshipType ?? null,
-          intern.position,
-          intern.startDate,
-          intern.endDate,
-          intern.tutorName || null,
-          intern.tutorEmail || null,
-          intern.tutorPhone ?? null,
-        ],
-      );
-      const declaredInternId = insDi.rows[0].id as string;
-      await insertPartnerIntakeSnapshot(client, {
+      await insertDeclaredInternWithFullIntake(client, {
         declarationId: declId,
-        declaredInternId,
         companyId: body.companyId,
         intern,
         fullState,
         benefitLabels,
+        partnerFormExtras,
       });
     }
     await client.query("COMMIT");
@@ -984,7 +1053,7 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
             season::text AS season, year,
             student_full_name, student_email, company_name, company_country,
             position, start_date, end_date, tutor_name, tutor_email,
-            partner_snapshot_id::text AS partner_snapshot_id, convention_record
+            convention_record
        FROM careers.v_merged_overview`,
   );
 
@@ -1040,7 +1109,6 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
         r.convention_record && typeof r.convention_record === "object"
           ? (r.convention_record as Record<string, unknown>)
           : undefined,
-      partnerSnapshotId: (r.partner_snapshot_id as string) || undefined,
     });
   }
 

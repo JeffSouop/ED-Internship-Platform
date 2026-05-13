@@ -111,7 +111,8 @@ FROM student s
 WHERE s.student_id = 'STU-2026-001'
   AND NOT EXISTS (
     SELECT 1 FROM student_submission ss
-    WHERE ss.student_uuid = s.id AND ss.promotion_id = s.promotion_id AND ss.status <> 'rejected'
+    WHERE ss.student_uuid = s.id AND ss.promotion_id = s.promotion_id
+      AND ss.status IN ('pending'::submission_status, 'changes_requested'::submission_status, 'approved'::submission_status)
   );
 
 INSERT INTO student_submission (
@@ -135,7 +136,8 @@ FROM student s
 WHERE s.student_id = 'STU-2026-002'
   AND NOT EXISTS (
     SELECT 1 FROM student_submission ss
-    WHERE ss.student_uuid = s.id AND ss.promotion_id = s.promotion_id AND ss.status <> 'rejected'
+    WHERE ss.student_uuid = s.id AND ss.promotion_id = s.promotion_id
+      AND ss.status IN ('pending'::submission_status, 'changes_requested'::submission_status, 'approved'::submission_status)
   );
 
 -- Magic links (kind cohérent avec CHECK access_token)

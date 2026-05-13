@@ -6,6 +6,7 @@ const labels: Record<SubmissionStatus, string> = {
   changes_requested: "Modifications demandées",
   approved: "Approuvé",
   rejected: "Refusé",
+  superseded: "Remplacé (historique)",
 };
 
 const styles: Record<SubmissionStatus, string> = {
@@ -13,6 +14,7 @@ const styles: Record<SubmissionStatus, string> = {
   changes_requested: "bg-accent/20 text-accent-foreground border-accent/40",
   approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
+  superseded: "bg-muted text-muted-foreground border-border",
 };
 
 export function StatusBadge({

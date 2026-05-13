@@ -19,7 +19,7 @@ export type SubmitDeclarationPayload = {
   intake: Intake;
   interns: DeclaredIntern[];
   partnerFormExtras?: Record<string, unknown>;
-  /** Copie du formulaire au clic (camelCase) — alimente la table partner_intake_submission_snapshot. */
+  /** État complet du formulaire partenaire au moment de l’envoi — persisté sur chaque ligne `declared_intern`. */
   partnerFormFullState?: Record<string, unknown>;
   partnerBenefitLabels?: string[];
 };

@@ -1,11 +1,33 @@
 import { apiJson } from "@/lib/api";
 
+/** Une ligne = un enregistrement `student_submission` (envoi formulaire étudiant). */
 export interface FormResponseRow {
   id: string;
-  studentIdText: string;
-  submissionId?: string;
-  createdAt: string;
-  payload: unknown;
+  studentId: string;
+  submittedAt: string;
+  status: string;
+  record: {
+    companyName: string;
+    companyCountry?: string;
+    companyCity?: string;
+    position: string;
+    missions: string;
+    startDate: string;
+    endDate: string;
+    tutorName: string;
+    tutorEmail: string;
+    campusInputLabel?: string;
+    programmeInputLabel?: string;
+    careerHeadName?: string;
+    acceptedTerms: boolean;
+    personalEmail?: string;
+    companyEmail?: string;
+    companyPhone?: string;
+    studentAddress?: string;
+    studentPostalCode?: string;
+    studentCity?: string;
+    civilLiabilityInsuranceRef?: string;
+  };
 }
 
 const delay = (ms = 80) => new Promise((r) => setTimeout(r, ms));

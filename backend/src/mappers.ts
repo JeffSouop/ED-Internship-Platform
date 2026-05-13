@@ -76,6 +76,17 @@ export function mapSubmissionRow(
     reviewer_comment: string | null;
     submitted_at: Date | string;
     reviewed_at: Date | string | null;
+    campus_input_label?: string | null;
+    programme_input_label?: string | null;
+    career_head_name?: string | null;
+    accepted_terms?: boolean | null;
+    personal_email?: string | null;
+    company_email?: string | null;
+    company_phone?: string | null;
+    student_address?: string | null;
+    student_postal_code?: string | null;
+    student_city?: string | null;
+    civil_liability_insurance_ref?: string | null;
     first_name: string;
     last_name: string;
     email: string;
@@ -119,6 +130,17 @@ export function mapSubmissionRow(
     reviewerComment: r.reviewer_comment ?? undefined,
     submittedAt: isoTz(r.submitted_at),
     reviewedAt: r.reviewed_at ? isoTz(r.reviewed_at) : undefined,
+    campusInputLabel: r.campus_input_label ?? undefined,
+    programmeInputLabel: r.programme_input_label ?? undefined,
+    careerHeadName: r.career_head_name ?? undefined,
+    acceptedTerms: r.accepted_terms === true ? true : r.accepted_terms === false ? false : undefined,
+    personalEmail: r.personal_email ?? undefined,
+    companyEmail: r.company_email ?? undefined,
+    companyPhone: r.company_phone ?? undefined,
+    studentAddress: r.student_address ?? undefined,
+    studentPostalCode: r.student_postal_code ?? undefined,
+    studentCity: r.student_city ?? undefined,
+    civilLiabilityInsuranceRef: r.civil_liability_insurance_ref ?? undefined,
   };
 }
 

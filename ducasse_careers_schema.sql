@@ -34,7 +34,8 @@ CREATE TYPE submission_status AS ENUM (
     'pending',             -- soumis, en attente
     'changes_requested',   -- demande de modification renvoyée à l'étudiant
     'approved',            -- validé
-    'rejected'             -- refusé
+    'rejected',            -- refusé
+    'superseded'           -- remplacé par un nouvel envoi (historique conservé)
 );
 
 -- Type d'utilisateur pour la table tokens (lien magique)
@@ -141,6 +142,19 @@ CREATE TABLE student_submission (
     tutor_email        TEXT,
     tutor_phone        TEXT,
 
+    -- Formulaire convention (une ligne = un envoi complet, champs structurés)
+    campus_input_label            TEXT,
+    programme_input_label         TEXT,
+    career_head_name              TEXT,
+    accepted_terms                BOOLEAN,
+    personal_email                 TEXT,
+    company_email                  TEXT,
+    company_phone                  TEXT,
+    student_address                TEXT,
+    student_postal_code            TEXT,
+    student_city                   TEXT,
+    civil_liability_insurance_ref  TEXT,
+
     -- Workflow
     status             submission_status NOT NULL DEFAULT 'pending',
     reviewer_comment   TEXT,
@@ -159,11 +173,6 @@ CREATE INDEX idx_sub_status          ON student_submission(status);
 CREATE INDEX idx_sub_promotion       ON student_submission(promotion_id);
 CREATE INDEX idx_sub_company_name_tg ON student_submission USING gin (company_name gin_trgm_ops);
 
--- Une seule soumission active (non rejetée) par étudiant et promotion
-CREATE UNIQUE INDEX uniq_active_sub_per_student
-    ON student_submission(student_uuid, promotion_id)
-    WHERE status <> 'rejected';
-
 -- Historique des décisions (audit)
 CREATE TABLE submission_review_history (
     id            BIGSERIAL PRIMARY KEY,
@@ -177,6 +186,23 @@ CREATE TABLE submission_review_history (
 
 CREATE INDEX idx_review_hist_sub ON submission_review_history(submission_id);
 
+-- Vues métier : le dossier officiel reste `student` + `student_submission`.
+-- Validé = approuvé par l'équipe carrière ; « non validé » = tout autre statut.
+CREATE OR REPLACE VIEW v_submissions_validated AS
+SELECT ss.*
+  FROM student_submission ss
+ WHERE ss.status = 'approved';
+
+CREATE OR REPLACE VIEW v_submissions_pending_review AS
+SELECT ss.*
+  FROM student_submission ss
+ WHERE ss.status IN ('pending', 'changes_requested');
+
+CREATE OR REPLACE VIEW v_submissions_not_validated AS
+SELECT ss.*
+  FROM student_submission ss
+ WHERE ss.status <> 'approved';
+
 -- =====================================================================
 -- 5. ENTREPRISES
 -- =====================================================================
@@ -184,10 +210,14 @@ CREATE INDEX idx_review_hist_sub ON submission_review_history(submission_id);
 
 CREATE TABLE company (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name         TEXT NOT NULL,
+    name         TEXT NOT NULL,                 -- nom légal
     country      TEXT NOT NULL,
     sector       TEXT,
     size_bucket  TEXT,                          -- '1-10', '11-50', ...
+    trade_name   TEXT,                          -- nom commercial
+    siret        TEXT,                          -- n° d’immatriculation (SIRET ou équivalent)
+    insurance_company TEXT,
+    insurance_policy    TEXT,
     address      TEXT,
     city         TEXT,
     postal_code  TEXT,
@@ -232,11 +262,14 @@ CREATE TABLE company_declaration (
 
 CREATE INDEX idx_decl_intake ON company_declaration(season, year);
 
--- Un stagiaire déclaré par l'entreprise (clé : student_id pivot)
+-- Un stagiaire déclaré + enregistrement complet du formulaire entreprise (une ligne par envoi / par stagiaire).
 CREATE TABLE declared_intern (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     declaration_id  UUID NOT NULL REFERENCES company_declaration(id) ON DELETE CASCADE,
     student_id      TEXT NOT NULL,             -- pivot
+    first_name      TEXT,
+    last_name       TEXT,
+    internship_type TEXT,                      -- ex. culinary | pastry (saisie courte liste)
     position        TEXT NOT NULL,
     start_date      DATE NOT NULL,
     end_date        DATE NOT NULL,
@@ -244,24 +277,11 @@ CREATE TABLE declared_intern (
     tutor_email     TEXT,
     tutor_phone     TEXT,
     notes           TEXT,
-    CHECK (end_date >= start_date),
-    UNIQUE (declaration_id, student_id)
-);
 
-CREATE INDEX idx_declared_intern_student ON declared_intern(student_id);
-
-CREATE TABLE partner_intake_submission_snapshot (
-    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    declaration_id              UUID NOT NULL REFERENCES company_declaration(id) ON DELETE CASCADE,
-    declared_intern_id          UUID NOT NULL REFERENCES declared_intern(id) ON DELETE CASCADE,
-    company_id                  UUID NOT NULL REFERENCES company(id) ON DELETE CASCADE,
-    submitted_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    student_id_normalized       TEXT NOT NULL,
     accepted_terms              BOOLEAN,
     programme_class_level       TEXT,
-    first_name                  TEXT,
-    last_name                   TEXT,
+    grid_first_name             TEXT,
+    grid_last_name              TEXT,
     birth_date                  DATE,
     student_current_address     TEXT,
     student_postal_code         TEXT,
@@ -282,7 +302,7 @@ CREATE TABLE partner_intake_submission_snapshot (
     civil_liability_insurance_ref TEXT,
     intern_first_name           TEXT,
     intern_last_name            TEXT,
-    internship_type             TEXT,
+    intake_internship_type      TEXT,
     company_side_start_date     DATE,
     company_side_end_date       DATE,
     company_legal_name          TEXT,
@@ -300,19 +320,21 @@ CREATE TABLE partner_intake_submission_snapshot (
     hr_phone                    TEXT,
     tutor_chef_name             TEXT,
     tutor_chef_position         TEXT,
-    tutor_email                 TEXT,
-    tutor_phone                 TEXT,
+    tutor_chef_email            TEXT,
+    tutor_chef_phone            TEXT,
     weekly_schedule             TEXT,
     compensation_monthly_or_hourly TEXT,
     benefits_offered            TEXT,
     tasks_assigned              TEXT,
 
-    raw_payload                 JSONB NOT NULL DEFAULT '{}'::jsonb
+    partner_form_extras         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    raw_payload                   JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    CHECK (end_date >= start_date),
+    UNIQUE (declaration_id, student_id)
 );
 
-CREATE INDEX idx_partner_snapshot_declaration ON partner_intake_submission_snapshot(declaration_id);
-CREATE INDEX idx_partner_snapshot_student ON partner_intake_submission_snapshot(student_id_normalized);
-CREATE INDEX idx_partner_snapshot_company ON partner_intake_submission_snapshot(company_id);
+CREATE INDEX idx_declared_intern_student ON declared_intern(student_id);
 
 -- =====================================================================
 -- 7. JOINTURE AUTOMATIQUE (table matérialisée alimentée par trigger)
@@ -345,7 +367,6 @@ CREATE TABLE merged_internship (
 
     merged_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-    partner_snapshot_id      UUID REFERENCES partner_intake_submission_snapshot(id) ON DELETE SET NULL,
     convention_record        JSONB NOT NULL DEFAULT '{}'::jsonb,
     UNIQUE (student_id, season, year)
 );
@@ -433,7 +454,6 @@ DECLARE
     v_company  company%ROWTYPE;
     v_student  student%ROWTYPE;
     v_bundle   JSONB;
-    v_snap_id  UUID;
 BEGIN
     SELECT s.* INTO v_sub
       FROM student_submission s
@@ -461,12 +481,6 @@ BEGIN
     SELECT * INTO v_company FROM company             WHERE id = v_decl.company_id;
     SELECT * INTO v_student FROM student             WHERE id = v_sub.student_uuid;
 
-    SELECT ps.id INTO v_snap_id
-      FROM partner_intake_submission_snapshot ps
-     WHERE ps.declared_intern_id = v_intern.id
-     ORDER BY ps.submitted_at DESC NULLS LAST
-     LIMIT 1;
-
     SELECT jsonb_build_object(
       'student',
       (SELECT to_jsonb(s) FROM student s WHERE s.id = v_student.id),
@@ -485,15 +499,7 @@ BEGIN
         WHERE c.id = v_company.id
       ),
       'declaredIntern',
-      (SELECT to_jsonb(d) FROM declared_intern d WHERE d.id = v_intern.id),
-      'partnerSnapshot',
-      (
-        SELECT to_jsonb(ps)
-        FROM partner_intake_submission_snapshot ps
-        WHERE ps.declared_intern_id = v_intern.id
-        ORDER BY ps.submitted_at DESC NULLS LAST
-        LIMIT 1
-      )
+      (SELECT to_jsonb(d) FROM declared_intern d WHERE d.id = v_intern.id)
     ) INTO v_bundle;
 
     INSERT INTO merged_internship (
@@ -502,7 +508,7 @@ BEGIN
         student_full_name, student_email,
         company_name, company_country,
         position, start_date, end_date, tutor_name, tutor_email,
-        partner_snapshot_id, convention_record
+        convention_record
     ) VALUES (
         p_student_id, v_student.id, v_sub.id, v_company.id, v_intern.id,
         p_season, p_year,
@@ -513,7 +519,6 @@ BEGIN
         COALESCE(v_intern.end_date,   v_sub.end_date),
         COALESCE(v_intern.tutor_name, v_sub.tutor_name),
         COALESCE(v_intern.tutor_email, v_sub.tutor_email),
-        v_snap_id,
         COALESCE(v_bundle, '{}'::jsonb)
     )
     ON CONFLICT (student_id, season, year) DO UPDATE SET
@@ -532,7 +537,6 @@ BEGIN
         tutor_email           = EXCLUDED.tutor_email,
         merged_at             = now(),
         updated_at            = now(),
-        partner_snapshot_id   = EXCLUDED.partner_snapshot_id,
         convention_record     = EXCLUDED.convention_record;
 END $$;
 
@@ -572,27 +576,6 @@ END $$;
 CREATE TRIGGER trg_declared_intern_merge
 AFTER INSERT OR UPDATE ON declared_intern
 FOR EACH ROW EXECUTE FUNCTION trg_declared_intern_after_change();
-
-CREATE OR REPLACE FUNCTION trg_partner_snapshot_merge()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-DECLARE
-  sid TEXT;
-  se  intake_season;
-  y   INT;
-BEGIN
-  SELECT di.student_id, cd.season, cd.year INTO sid, se, y
-    FROM declared_intern di
-    JOIN company_declaration cd ON cd.id = di.declaration_id
-   WHERE di.id = NEW.declared_intern_id;
-  IF sid IS NOT NULL THEN
-    PERFORM try_merge_internship(sid, se, y);
-  END IF;
-  RETURN NEW;
-END $$;
-
-CREATE TRIGGER trg_partner_snapshot_merge
-AFTER INSERT ON partner_intake_submission_snapshot
-FOR EACH ROW EXECUTE FUNCTION trg_partner_snapshot_merge();
 
 -- Historiser les changements de statut de soumission
 CREATE OR REPLACE FUNCTION trg_submission_status_history()
@@ -642,12 +625,23 @@ SELECT s.student_id,
   LEFT JOIN LATERAL (
         SELECT * FROM student_submission ss
          WHERE ss.student_uuid = s.id
+           AND ss.status NOT IN ('rejected'::careers.submission_status, 'superseded'::careers.submission_status)
          ORDER BY ss.submitted_at DESC LIMIT 1
   ) sub ON TRUE;
 
 -- Vue 3 statuts (matched / student_only / company_only)
-CREATE OR REPLACE VIEW v_merged_overview AS
-SELECT m.*, 'matched'::text AS match_status
+DROP VIEW IF EXISTS v_merged_overview CASCADE;
+
+CREATE VIEW v_merged_overview AS
+SELECT m.id, m.student_id, m.student_uuid, m.submission_id, m.company_id, m.declared_intern_id,
+       m.season, m.year,
+       m.student_full_name, m.student_email,
+       m.company_name, m.company_country,
+       m.position, m.start_date, m.end_date,
+       m.tutor_name, m.tutor_email,
+       m.merged_at, m.updated_at,
+       m.convention_record,
+       'matched'::text AS match_status
   FROM merged_internship m
 UNION ALL
 SELECT NULL::uuid, ss.student_id, ss.student_uuid, ss.id, NULL::uuid, NULL::uuid,
@@ -656,16 +650,16 @@ SELECT NULL::uuid, ss.student_id, ss.student_uuid, ss.id, NULL::uuid, NULL::uuid
        ss.company_name, ss.company_country,
        ss.position, ss.start_date, ss.end_date,
        ss.tutor_name, ss.tutor_email, ss.submitted_at, ss.updated_at,
-       NULL::uuid, '{}'::jsonb,
+       '{}'::jsonb,
        'student_only'::text
   FROM student_submission ss
   JOIN student st ON st.id = ss.student_uuid
   JOIN promotion p ON p.id = ss.promotion_id
  WHERE ss.status = 'approved'
    AND NOT EXISTS (
-        SELECT 1 FROM merged_internship m
-         WHERE m.student_id = ss.student_id
-           AND m.season = p.season AND m.year = p.year)
+        SELECT 1 FROM merged_internship m2
+         WHERE m2.student_id = ss.student_id
+           AND m2.season = p.season AND m2.year = p.year)
 UNION ALL
 SELECT NULL::uuid, di.student_id, NULL::uuid, NULL::uuid, c.id, di.id,
        cd.season, cd.year,
@@ -673,15 +667,15 @@ SELECT NULL::uuid, di.student_id, NULL::uuid, NULL::uuid, c.id, di.id,
        c.name, c.country,
        di.position, di.start_date, di.end_date,
        di.tutor_name, di.tutor_email, cd.submitted_at, cd.updated_at,
-       NULL::uuid, '{}'::jsonb,
+       '{}'::jsonb,
        'company_only'::text
   FROM declared_intern di
   JOIN company_declaration cd ON cd.id = di.declaration_id
   JOIN company c ON c.id = cd.company_id
  WHERE NOT EXISTS (
-        SELECT 1 FROM merged_internship m
-         WHERE m.student_id = di.student_id
-           AND m.season = cd.season AND m.year = cd.year);
+        SELECT 1 FROM merged_internship m2
+         WHERE m2.student_id = di.student_id
+           AND m2.season = cd.season AND m2.year = cd.year);
 
 -- =====================================================================
 -- 11. SEED MINIMAL (à supprimer en prod)
