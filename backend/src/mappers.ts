@@ -3,6 +3,7 @@ import type {
   CompanyContact,
   DeclaredIntern,
   Intake,
+  MergedInternship,
   Student,
   StudentSubmission,
   SubmissionStatus,
@@ -205,5 +206,119 @@ export function mapDeclaredInternRow(r: {
     firstName: r.first_name ?? undefined,
     lastName: r.last_name ?? undefined,
     internshipType: r.internship_type ?? undefined,
+  };
+}
+
+function isoDatePg(v: unknown): string {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "string") return v.slice(0, 10);
+  return String(v).slice(0, 10);
+}
+
+function isoTzPg(v: unknown): string | undefined {
+  if (v == null) return undefined;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") return new Date(v).toISOString();
+  return undefined;
+}
+
+/** Construit l’objet API à partir d’une ligne careers.merged_internship (cols st_/ss_/co_/cct_/din_). */
+export function mergedMatchedPgRowToMergedInternship(
+  row: Record<string, unknown>,
+  intake: Intake,
+): MergedInternship {
+  const studentId = row.student_id as string;
+  const campusShort =
+    typeof row.st_campus_name === "string" && row.st_campus_name.toLowerCase().includes("yss")
+      ? "Yssingeaux"
+      : "Paris";
+  const student: Student = {
+    id: studentId,
+    firstName: (row.st_first_name as string) ?? "",
+    lastName: (row.st_last_name as string) ?? "",
+    email: (row.st_email as string) ?? "",
+    phone: (row.st_phone as string) || undefined,
+    campus: campusShort,
+    programme: (row.st_programme_name as string) ?? "",
+    promotion: intake,
+  };
+  const submission: StudentSubmission = {
+    id: row.submission_id as string,
+    studentId,
+    student,
+    companyName: (row.ss_company_name as string) ?? "",
+    companyCountry: (row.ss_company_country as string) ?? "",
+    companyCity: (row.ss_company_city as string) || undefined,
+    startDate: isoDatePg(row.ss_start_date),
+    endDate: isoDatePg(row.ss_end_date),
+    position: (row.ss_position as string) ?? "",
+    missions: (row.ss_missions as string) ?? "",
+    tutorName: (row.ss_tutor_name as string) ?? "",
+    tutorEmail: (row.ss_tutor_email as string) ?? "",
+    status: ((row.ss_status as string) ?? "approved") as SubmissionStatus,
+    reviewerComment: (row.ss_reviewer_comment as string) || undefined,
+    submittedAt: isoTzPg(row.ss_submitted_at) ?? "",
+    reviewedAt: isoTzPg(row.ss_reviewed_at),
+    campusInputLabel: (row.ss_campus_input_label as string) || undefined,
+    programmeInputLabel: (row.ss_programme_input_label as string) || undefined,
+    careerHeadName: (row.ss_career_head_name as string) || undefined,
+    acceptedTerms:
+      row.ss_accepted_terms === true ? true : row.ss_accepted_terms === false ? false : undefined,
+    personalEmail: (row.ss_personal_email as string) || undefined,
+    companyEmail: (row.ss_company_email as string) || undefined,
+    companyPhone: (row.ss_company_phone as string) || undefined,
+    studentAddress: (row.ss_student_address as string) || undefined,
+    studentPostalCode: (row.ss_student_postal_code as string) || undefined,
+    studentCity: (row.ss_student_city as string) || undefined,
+    civilLiabilityInsuranceRef: (row.ss_civil_liability_insurance_ref as string) || undefined,
+  };
+  const company = mapCompanyRow(
+    {
+      id: row.company_id as string,
+      name: (row.co_name as string) ?? "",
+      country: (row.co_country as string) ?? "",
+      sector: row.co_sector as string | null,
+      size_bucket: row.co_size_bucket as string | null,
+      address: row.co_address as string | null,
+      city: row.co_city as string | null,
+      postal_code: row.co_postal_code as string | null,
+      website: row.co_website as string | null,
+      trade_name: row.co_trade_name as string | null,
+      siret: row.co_siret as string | null,
+      insurance_company: row.co_insurance_company as string | null,
+      insurance_policy: row.co_insurance_policy as string | null,
+    },
+    row.cct_email
+      ? ([
+          {
+            name: (row.cct_full_name as string) ?? "",
+            email: (row.cct_email as string) ?? "",
+            role: (row.cct_role as string) ?? "",
+            phone: (row.cct_phone as string) || undefined,
+          },
+        ] satisfies CompanyContact[])
+      : [],
+  );
+  const declaredIntern = mapDeclaredInternRow({
+    student_id: studentId,
+    first_name: row.din_first_name as string | null,
+    last_name: row.din_last_name as string | null,
+    internship_type: row.din_internship_type as string | null,
+    position: (row.din_position as string) ?? "",
+    start_date: row.din_start_date as Date | string,
+    end_date: row.din_end_date as Date | string,
+    tutor_name: row.din_tutor_name as string | null,
+    tutor_email: row.din_tutor_email as string | null,
+    tutor_phone: row.din_tutor_phone as string | null,
+  });
+  return {
+    studentId,
+    student,
+    studentSubmission: submission,
+    company,
+    declaredIntern,
+    intake,
+    status: "matched",
   };
 }

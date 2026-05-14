@@ -29,6 +29,7 @@ import {
   mapDeclaredInternRow,
   mapStudentRow,
   mapSubmissionRow,
+  mergedMatchedPgRowToMergedInternship,
   programmeLabelToCode,
 } from "./mappers.js";
 import { insertDeclaredInternWithFullIntake } from "./partner-snapshot.js";
@@ -1048,67 +1049,79 @@ app.post("/api/declarations", async (req, res) => {
 
 // ——— Merged ———
 app.get("/api/merged", requireAdmin, async (_req, res) => {
-  const { rows } = await pool.query(
-    `SELECT match_status, student_id, student_uuid, submission_id, company_id, declared_intern_id,
-            season::text AS season, year,
-            student_full_name, student_email, company_name, company_country,
-            position, start_date, end_date, tutor_name, tutor_email,
-            convention_record
-       FROM careers.v_merged_overview`,
+  const { rows: matchedRows } = await pool.query(`SELECT * FROM careers.v_merged_overview`);
+  const { rows: studentOnlyRows } = await pool.query(
+    `SELECT ss.student_id, ss.student_uuid, ss.id AS submission_id,
+            p.season::text AS season, p.year
+       FROM careers.student_submission ss
+       JOIN careers.promotion p ON p.id = ss.promotion_id
+      WHERE ss.status = 'approved'
+        AND NOT EXISTS (
+              SELECT 1 FROM careers.merged_internship m2
+               WHERE m2.student_id = ss.student_id)`,
+  );
+  const { rows: companyOnlyRows } = await pool.query(
+    `SELECT di.student_id, c.id AS company_id, di.id AS declared_intern_id,
+            cd.season::text AS season, cd.year
+       FROM careers.declared_intern di
+       JOIN careers.company_declaration cd ON cd.id = di.declaration_id
+       JOIN careers.company c ON c.id = cd.company_id
+      WHERE NOT EXISTS (
+              SELECT 1 FROM careers.merged_internship m2
+               WHERE m2.student_id = di.student_id)`,
   );
 
   const merged: MergedInternship[] = [];
-  for (const r of rows) {
+
+  for (const r of matchedRows) {
+    const row = r as Record<string, unknown>;
+    const intake = dbSeasonYearToIntake(row.season as string, Number(row.year));
+    merged.push(mergedMatchedPgRowToMergedInternship(row, intake));
+  }
+
+  for (const r of studentOnlyRows) {
     const intake = dbSeasonYearToIntake(r.season as string, Number(r.year));
     const student = r.student_id ? await loadStudent(r.student_id as string) : undefined;
-
     let submission: StudentSubmission | undefined;
     if (r.submission_id) {
       submission = await loadSubmission(r.submission_id as string);
     }
-
-    let company = undefined;
-    if (r.company_id) {
-      company = await loadCompany(r.company_id as string);
-    }
-
-    let declaredIntern: DeclaredIntern | undefined;
-    if (r.declared_intern_id) {
-      const { rows: di } = await pool.query(
-        `SELECT student_id, position, start_date, end_date, tutor_name, tutor_email
-           FROM careers.declared_intern WHERE id = $1`,
-        [r.declared_intern_id],
-      );
-      if (di[0]) declaredIntern = mapDeclaredInternRow(di[0]);
-    } else if (r.position && r.student_id) {
-      declaredIntern = {
-        studentId: r.student_id as string,
-        position: r.position as string,
-        startDate:
-          typeof r.start_date === "string"
-            ? (r.start_date as string).slice(0, 10)
-            : (r.start_date as Date).toISOString().slice(0, 10),
-        endDate:
-          typeof r.end_date === "string"
-            ? (r.end_date as string).slice(0, 10)
-            : (r.end_date as Date).toISOString().slice(0, 10),
-        tutorName: (r.tutor_name as string) ?? "",
-        tutorEmail: (r.tutor_email as string) ?? "",
-      };
-    }
-
     merged.push({
       studentId: r.student_id as string,
       student,
       studentSubmission: submission,
+      company: undefined,
+      declaredIntern: undefined,
+      intake,
+      status: "student_only",
+    });
+  }
+
+  for (const r of companyOnlyRows) {
+    const intake = dbSeasonYearToIntake(r.season as string, Number(r.year));
+    const student = r.student_id ? await loadStudent(r.student_id as string) : undefined;
+    let company = undefined;
+    if (r.company_id) {
+      company = await loadCompany(r.company_id as string);
+    }
+    let declaredIntern: DeclaredIntern | undefined;
+    if (r.declared_intern_id) {
+      const { rows: di } = await pool.query(
+        `SELECT student_id, first_name, last_name, internship_type, position, start_date, end_date,
+                tutor_name, tutor_email, tutor_phone
+           FROM careers.declared_intern WHERE id = $1`,
+        [r.declared_intern_id],
+      );
+      if (di[0]) declaredIntern = mapDeclaredInternRow(di[0]);
+    }
+    merged.push({
+      studentId: r.student_id as string,
+      student,
+      studentSubmission: undefined,
       company,
       declaredIntern,
       intake,
-      status: r.match_status as "matched" | "student_only" | "company_only",
-      conventionRecord:
-        r.convention_record && typeof r.convention_record === "object"
-          ? (r.convention_record as Record<string, unknown>)
-          : undefined,
+      status: "company_only",
     });
   }
 

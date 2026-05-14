@@ -339,9 +339,9 @@ CREATE INDEX idx_declared_intern_student ON declared_intern(student_id);
 -- =====================================================================
 -- 7. JOINTURE AUTOMATIQUE (table matérialisée alimentée par trigger)
 -- =====================================================================
--- Dès qu'une soumission étudiant passe à 'approved' ET qu'il existe une
--- declared_intern avec le même student_id, on insère/maj une ligne ici.
--- C'est la "deuxième base" évoquée : la vue consolidée.
+-- Dès qu'une soumission étudiant est 'approved' ET qu'il existe une
+-- declared_intern avec le même student_id (peu importe la rentrée déclarée côté entreprise),
+-- on insère/maj une ligne ici (une ligne par student_id).
 
 CREATE TABLE merged_internship (
     id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -354,7 +354,6 @@ CREATE TABLE merged_internship (
     season                   intake_season NOT NULL,
     year                     INT NOT NULL,
 
-    -- Dénormalisation utile pour le reporting
     student_full_name        TEXT,
     student_email            TEXT,
     company_name             TEXT,
@@ -367,8 +366,135 @@ CREATE TABLE merged_internship (
 
     merged_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-    convention_record        JSONB NOT NULL DEFAULT '{}'::jsonb,
-    UNIQUE (student_id, season, year)
+
+    st_promotion_id          INT REFERENCES promotion(id),
+    st_first_name            TEXT,
+    st_last_name             TEXT,
+    st_email                 TEXT,
+    st_phone                 TEXT,
+    st_nationality           TEXT,
+    st_birth_date            DATE,
+    st_campus_name           TEXT,
+    st_programme_name        TEXT,
+    st_reg_created_at        TIMESTAMPTZ,
+    st_reg_updated_at        TIMESTAMPTZ,
+
+    ss_promotion_id          INT,
+    ss_company_name          TEXT,
+    ss_company_country       TEXT,
+    ss_company_city          TEXT,
+    ss_position              TEXT,
+    ss_missions              TEXT,
+    ss_start_date            DATE,
+    ss_end_date              DATE,
+    ss_weekly_hours          NUMERIC(5,2),
+    ss_gross_salary          NUMERIC(10,2),
+    ss_currency              CHAR(3),
+    ss_tutor_name            TEXT,
+    ss_tutor_email           TEXT,
+    ss_tutor_phone           TEXT,
+    ss_campus_input_label    TEXT,
+    ss_programme_input_label TEXT,
+    ss_career_head_name      TEXT,
+    ss_accepted_terms        BOOLEAN,
+    ss_personal_email        TEXT,
+    ss_company_email         TEXT,
+    ss_company_phone         TEXT,
+    ss_student_address       TEXT,
+    ss_student_postal_code   TEXT,
+    ss_student_city          TEXT,
+    ss_civil_liability_insurance_ref TEXT,
+    ss_status                submission_status,
+    ss_reviewer_comment      TEXT,
+    ss_reviewed_by           UUID,
+    ss_reviewed_at           TIMESTAMPTZ,
+    ss_submitted_at          TIMESTAMPTZ,
+    ss_created_at            TIMESTAMPTZ,
+    ss_updated_at            TIMESTAMPTZ,
+
+    co_name                  TEXT,
+    co_country               TEXT,
+    co_sector                TEXT,
+    co_size_bucket           TEXT,
+    co_trade_name            TEXT,
+    co_siret                 TEXT,
+    co_insurance_company     TEXT,
+    co_insurance_policy      TEXT,
+    co_address               TEXT,
+    co_city                  TEXT,
+    co_postal_code           TEXT,
+    co_website               TEXT,
+    co_source_created_at     TIMESTAMPTZ,
+    co_source_updated_at     TIMESTAMPTZ,
+
+    cct_full_name            TEXT,
+    cct_email                TEXT,
+    cct_role                 TEXT,
+    cct_phone                TEXT,
+
+    din_declaration_id       UUID,
+    din_first_name           TEXT,
+    din_last_name            TEXT,
+    din_internship_type      TEXT,
+    din_position             TEXT,
+    din_start_date           DATE,
+    din_end_date             DATE,
+    din_tutor_name           TEXT,
+    din_tutor_email          TEXT,
+    din_tutor_phone          TEXT,
+    din_notes                TEXT,
+    din_accepted_terms       BOOLEAN,
+    din_programme_class_level TEXT,
+    din_grid_first_name      TEXT,
+    din_grid_last_name       TEXT,
+    din_birth_date           DATE,
+    din_student_current_address TEXT,
+    din_student_postal_code  TEXT,
+    din_student_city         TEXT,
+    din_student_mobile_phone TEXT,
+    din_student_ducasse_email TEXT,
+    din_student_personal_email TEXT,
+    din_host_company_name    TEXT,
+    din_host_company_email   TEXT,
+    din_host_supervisor_chef_name TEXT,
+    din_host_supervisor_chef_email TEXT,
+    din_host_company_phone   TEXT,
+    din_host_company_country TEXT,
+    din_host_company_city    TEXT,
+    din_host_stage_start_date DATE,
+    din_host_stage_end_date  DATE,
+    din_head_of_pedagogy     TEXT,
+    din_civil_liability_insurance_ref TEXT,
+    din_intern_first_name    TEXT,
+    din_intern_last_name     TEXT,
+    din_intake_internship_type TEXT,
+    din_company_side_start_date DATE,
+    din_company_side_end_date DATE,
+    din_company_legal_name   TEXT,
+    din_company_trade_name   TEXT,
+    din_company_business_activity TEXT,
+    din_company_siret        TEXT,
+    din_insurance_company_name TEXT,
+    din_insurance_policy_number TEXT,
+    din_company_address      TEXT,
+    din_company_postal_code  TEXT,
+    din_company_city         TEXT,
+    din_hr_representative_name TEXT,
+    din_hr_representative_title TEXT,
+    din_hr_email             TEXT,
+    din_hr_phone             TEXT,
+    din_tutor_chef_name      TEXT,
+    din_tutor_chef_position  TEXT,
+    din_tutor_chef_email     TEXT,
+    din_tutor_chef_phone     TEXT,
+    din_weekly_schedule      TEXT,
+    din_compensation_monthly_or_hourly TEXT,
+    din_benefits_offered     TEXT,
+    din_tasks_assigned       TEXT,
+    din_partner_form_extras_text TEXT,
+    din_raw_payload_text     TEXT,
+
+    UNIQUE (student_id)
 );
 
 CREATE INDEX idx_merged_company  ON merged_internship(company_id);
@@ -441,38 +567,41 @@ BEGIN
 END $$;
 
 -- ---------- Jointure auto vers merged_internship ----------------------
--- Tente de fusionner pour un student_id + intake donné.
-CREATE OR REPLACE FUNCTION try_merge_internship(
-    p_student_id TEXT,
-    p_season     intake_season,
-    p_year       INT
-) RETURNS VOID LANGUAGE plpgsql AS $$
+-- Merge si même student_id : dernière soumission approuvée + dernière ligne declared_intern (peu importe la rentrée entreprise / étudiant).
+CREATE OR REPLACE FUNCTION try_merge_internship(p_student_id TEXT) RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
     v_sub      student_submission%ROWTYPE;
     v_intern   declared_intern%ROWTYPE;
     v_decl     company_declaration%ROWTYPE;
     v_company  company%ROWTYPE;
     v_student  student%ROWTYPE;
-    v_bundle   JSONB;
+    v_ss_season intake_season;
+    v_ss_year   INT;
+    v_campus   TEXT;
+    v_programme TEXT;
+    v_ct_full  TEXT;
+    v_ct_email TEXT;
+    v_ct_role  TEXT;
+    v_ct_phone TEXT;
 BEGIN
     SELECT s.* INTO v_sub
       FROM student_submission s
-      JOIN promotion p ON p.id = s.promotion_id
      WHERE s.student_id = p_student_id
        AND s.status     = 'approved'
-       AND p.season     = p_season
-       AND p.year       = p_year
-     ORDER BY s.reviewed_at DESC NULLS LAST
+     ORDER BY s.reviewed_at DESC NULLS LAST, s.submitted_at DESC
      LIMIT 1;
 
     IF NOT FOUND THEN RETURN; END IF;
+
+    SELECT p.season, p.year INTO v_ss_season, v_ss_year
+      FROM promotion p
+     WHERE p.id = v_sub.promotion_id;
 
     SELECT di.* INTO v_intern
       FROM declared_intern di
       JOIN company_declaration cd ON cd.id = di.declaration_id
      WHERE di.student_id = p_student_id
-       AND cd.season     = p_season
-       AND cd.year       = p_year
+     ORDER BY cd.updated_at DESC NULLS LAST, cd.submitted_at DESC, di.id DESC
      LIMIT 1;
 
     IF NOT FOUND THEN RETURN; END IF;
@@ -481,51 +610,96 @@ BEGIN
     SELECT * INTO v_company FROM company             WHERE id = v_decl.company_id;
     SELECT * INTO v_student FROM student             WHERE id = v_sub.student_uuid;
 
-    SELECT jsonb_build_object(
-      'student',
-      (SELECT to_jsonb(s) FROM student s WHERE s.id = v_student.id),
-      'submission',
-      (SELECT to_jsonb(sb) FROM student_submission sb WHERE sb.id = v_sub.id),
-      'company',
-      (
-        SELECT to_jsonb(c) || jsonb_build_object(
-          'contacts',
-          COALESCE(
-            (SELECT jsonb_agg(to_jsonb(ct)) FROM company_contact ct WHERE ct.company_id = c.id),
-            '[]'::jsonb
-          )
-        )
-        FROM company c
-        WHERE c.id = v_company.id
-      ),
-      'declaredIntern',
-      (SELECT to_jsonb(d) FROM declared_intern d WHERE d.id = v_intern.id)
-    ) INTO v_bundle;
+    SELECT c.name, pr.name INTO v_campus, v_programme
+      FROM student s
+      JOIN promotion p2 ON p2.id = s.promotion_id
+      JOIN campus c ON c.id = p2.campus_id
+      JOIN programme pr ON pr.id = p2.programme_id
+     WHERE s.id = v_sub.student_uuid;
+
+    SELECT cc.full_name, cc.email, cc.role, cc.phone
+      INTO v_ct_full, v_ct_email, v_ct_role, v_ct_phone
+      FROM company_contact cc
+     WHERE cc.company_id = v_company.id
+     ORDER BY cc.is_primary DESC, cc.id
+     LIMIT 1;
 
     INSERT INTO merged_internship (
         student_id, student_uuid, submission_id, company_id, declared_intern_id,
         season, year,
-        student_full_name, student_email,
-        company_name, company_country,
+        student_full_name, student_email, company_name, company_country,
         position, start_date, end_date, tutor_name, tutor_email,
-        convention_record
+        merged_at, updated_at,
+        st_promotion_id, st_first_name, st_last_name, st_email, st_phone, st_nationality, st_birth_date,
+        st_campus_name, st_programme_name, st_reg_created_at, st_reg_updated_at,
+        ss_promotion_id, ss_company_name, ss_company_country, ss_company_city, ss_position, ss_missions,
+        ss_start_date, ss_end_date, ss_weekly_hours, ss_gross_salary, ss_currency,
+        ss_tutor_name, ss_tutor_email, ss_tutor_phone,
+        ss_campus_input_label, ss_programme_input_label, ss_career_head_name, ss_accepted_terms,
+        ss_personal_email, ss_company_email, ss_company_phone, ss_student_address, ss_student_postal_code, ss_student_city,
+        ss_civil_liability_insurance_ref, ss_status, ss_reviewer_comment, ss_reviewed_by, ss_reviewed_at,
+        ss_submitted_at, ss_created_at, ss_updated_at,
+        co_name, co_country, co_sector, co_size_bucket, co_trade_name, co_siret,
+        co_insurance_company, co_insurance_policy, co_address, co_city, co_postal_code, co_website,
+        co_source_created_at, co_source_updated_at,
+        cct_full_name, cct_email, cct_role, cct_phone,
+        din_declaration_id, din_first_name, din_last_name, din_internship_type, din_position, din_start_date, din_end_date,
+        din_tutor_name, din_tutor_email, din_tutor_phone, din_notes, din_accepted_terms, din_programme_class_level,
+        din_grid_first_name, din_grid_last_name, din_birth_date, din_student_current_address, din_student_postal_code, din_student_city,
+        din_student_mobile_phone, din_student_ducasse_email, din_student_personal_email,
+        din_host_company_name, din_host_company_email, din_host_supervisor_chef_name, din_host_supervisor_chef_email,
+        din_host_company_phone, din_host_company_country, din_host_company_city, din_host_stage_start_date, din_host_stage_end_date,
+        din_head_of_pedagogy, din_civil_liability_insurance_ref, din_intern_first_name, din_intern_last_name, din_intake_internship_type,
+        din_company_side_start_date, din_company_side_end_date, din_company_legal_name, din_company_trade_name, din_company_business_activity,
+        din_company_siret, din_insurance_company_name, din_insurance_policy_number, din_company_address, din_company_postal_code, din_company_city,
+        din_hr_representative_name, din_hr_representative_title, din_hr_email, din_hr_phone,
+        din_tutor_chef_name, din_tutor_chef_position, din_tutor_chef_email, din_tutor_chef_phone,
+        din_weekly_schedule, din_compensation_monthly_or_hourly, din_benefits_offered, din_tasks_assigned,
+        din_partner_form_extras_text, din_raw_payload_text
     ) VALUES (
         p_student_id, v_student.id, v_sub.id, v_company.id, v_intern.id,
-        p_season, p_year,
-        v_student.first_name || ' ' || v_student.last_name, v_student.email,
-        v_company.name, v_company.country,
+        v_ss_season, v_ss_year,
+        v_student.first_name || ' ' || v_student.last_name, v_student.email, v_company.name, v_company.country,
         COALESCE(v_intern.position, v_sub.position),
         COALESCE(v_intern.start_date, v_sub.start_date),
         COALESCE(v_intern.end_date,   v_sub.end_date),
         COALESCE(v_intern.tutor_name, v_sub.tutor_name),
         COALESCE(v_intern.tutor_email, v_sub.tutor_email),
-        COALESCE(v_bundle, '{}'::jsonb)
+        now(), now(),
+        v_student.promotion_id, v_student.first_name, v_student.last_name, v_student.email, v_student.phone, v_student.nationality, v_student.birth_date,
+        v_campus, v_programme, v_student.created_at, v_student.updated_at,
+        v_sub.promotion_id, v_sub.company_name, v_sub.company_country, v_sub.company_city, v_sub.position, v_sub.missions,
+        v_sub.start_date, v_sub.end_date, v_sub.weekly_hours, v_sub.gross_salary, v_sub.currency,
+        v_sub.tutor_name, v_sub.tutor_email, v_sub.tutor_phone,
+        v_sub.campus_input_label, v_sub.programme_input_label, v_sub.career_head_name, v_sub.accepted_terms,
+        v_sub.personal_email, v_sub.company_email, v_sub.company_phone, v_sub.student_address, v_sub.student_postal_code, v_sub.student_city,
+        v_sub.civil_liability_insurance_ref, v_sub.status, v_sub.reviewer_comment, v_sub.reviewed_by, v_sub.reviewed_at,
+        v_sub.submitted_at, v_sub.created_at, v_sub.updated_at,
+        v_company.name, v_company.country, v_company.sector, v_company.size_bucket, v_company.trade_name, v_company.siret,
+        v_company.insurance_company, v_company.insurance_policy, v_company.address, v_company.city, v_company.postal_code, v_company.website,
+        v_company.created_at, v_company.updated_at,
+        v_ct_full, v_ct_email, v_ct_role, v_ct_phone,
+        v_intern.declaration_id, v_intern.first_name, v_intern.last_name, v_intern.internship_type, v_intern.position, v_intern.start_date, v_intern.end_date,
+        v_intern.tutor_name, v_intern.tutor_email, v_intern.tutor_phone, v_intern.notes, v_intern.accepted_terms, v_intern.programme_class_level,
+        v_intern.grid_first_name, v_intern.grid_last_name, v_intern.birth_date, v_intern.student_current_address, v_intern.student_postal_code, v_intern.student_city,
+        v_intern.student_mobile_phone, v_intern.student_ducasse_email, v_intern.student_personal_email,
+        v_intern.host_company_name, v_intern.host_company_email, v_intern.host_supervisor_chef_name, v_intern.host_supervisor_chef_email,
+        v_intern.host_company_phone, v_intern.host_company_country, v_intern.host_company_city, v_intern.host_stage_start_date, v_intern.host_stage_end_date,
+        v_intern.head_of_pedagogy, v_intern.civil_liability_insurance_ref, v_intern.intern_first_name, v_intern.intern_last_name, v_intern.intake_internship_type,
+        v_intern.company_side_start_date, v_intern.company_side_end_date, v_intern.company_legal_name, v_intern.company_trade_name, v_intern.company_business_activity,
+        v_intern.company_siret, v_intern.insurance_company_name, v_intern.insurance_policy_number, v_intern.company_address, v_intern.company_postal_code, v_intern.company_city,
+        v_intern.hr_representative_name, v_intern.hr_representative_title, v_intern.hr_email, v_intern.hr_phone,
+        v_intern.tutor_chef_name, v_intern.tutor_chef_position, v_intern.tutor_chef_email, v_intern.tutor_chef_phone,
+        v_intern.weekly_schedule, v_intern.compensation_monthly_or_hourly, v_intern.benefits_offered, v_intern.tasks_assigned,
+        v_intern.partner_form_extras::text, v_intern.raw_payload::text
     )
-    ON CONFLICT (student_id, season, year) DO UPDATE SET
+    ON CONFLICT (student_id) DO UPDATE SET
         student_uuid          = EXCLUDED.student_uuid,
         submission_id         = EXCLUDED.submission_id,
         company_id            = EXCLUDED.company_id,
         declared_intern_id    = EXCLUDED.declared_intern_id,
+        season                  = EXCLUDED.season,
+        year                    = EXCLUDED.year,
         student_full_name     = EXCLUDED.student_full_name,
         student_email         = EXCLUDED.student_email,
         company_name          = EXCLUDED.company_name,
@@ -537,21 +711,59 @@ BEGIN
         tutor_email           = EXCLUDED.tutor_email,
         merged_at             = now(),
         updated_at            = now(),
-        convention_record     = EXCLUDED.convention_record;
+        st_promotion_id = EXCLUDED.st_promotion_id, st_first_name = EXCLUDED.st_first_name, st_last_name = EXCLUDED.st_last_name,
+        st_email = EXCLUDED.st_email, st_phone = EXCLUDED.st_phone, st_nationality = EXCLUDED.st_nationality, st_birth_date = EXCLUDED.st_birth_date,
+        st_campus_name = EXCLUDED.st_campus_name, st_programme_name = EXCLUDED.st_programme_name,
+        st_reg_created_at = EXCLUDED.st_reg_created_at, st_reg_updated_at = EXCLUDED.st_reg_updated_at,
+        ss_promotion_id = EXCLUDED.ss_promotion_id, ss_company_name = EXCLUDED.ss_company_name, ss_company_country = EXCLUDED.ss_company_country,
+        ss_company_city = EXCLUDED.ss_company_city, ss_position = EXCLUDED.ss_position, ss_missions = EXCLUDED.ss_missions,
+        ss_start_date = EXCLUDED.ss_start_date, ss_end_date = EXCLUDED.ss_end_date, ss_weekly_hours = EXCLUDED.ss_weekly_hours,
+        ss_gross_salary = EXCLUDED.ss_gross_salary, ss_currency = EXCLUDED.ss_currency,
+        ss_tutor_name = EXCLUDED.ss_tutor_name, ss_tutor_email = EXCLUDED.ss_tutor_email, ss_tutor_phone = EXCLUDED.ss_tutor_phone,
+        ss_campus_input_label = EXCLUDED.ss_campus_input_label, ss_programme_input_label = EXCLUDED.ss_programme_input_label,
+        ss_career_head_name = EXCLUDED.ss_career_head_name, ss_accepted_terms = EXCLUDED.ss_accepted_terms,
+        ss_personal_email = EXCLUDED.ss_personal_email, ss_company_email = EXCLUDED.ss_company_email, ss_company_phone = EXCLUDED.ss_company_phone,
+        ss_student_address = EXCLUDED.ss_student_address, ss_student_postal_code = EXCLUDED.ss_student_postal_code, ss_student_city = EXCLUDED.ss_student_city,
+        ss_civil_liability_insurance_ref = EXCLUDED.ss_civil_liability_insurance_ref, ss_status = EXCLUDED.ss_status,
+        ss_reviewer_comment = EXCLUDED.ss_reviewer_comment, ss_reviewed_by = EXCLUDED.ss_reviewed_by, ss_reviewed_at = EXCLUDED.ss_reviewed_at,
+        ss_submitted_at = EXCLUDED.ss_submitted_at, ss_created_at = EXCLUDED.ss_created_at, ss_updated_at = EXCLUDED.ss_updated_at,
+        co_name = EXCLUDED.co_name, co_country = EXCLUDED.co_country, co_sector = EXCLUDED.co_sector, co_size_bucket = EXCLUDED.co_size_bucket,
+        co_trade_name = EXCLUDED.co_trade_name, co_siret = EXCLUDED.co_siret, co_insurance_company = EXCLUDED.co_insurance_company,
+        co_insurance_policy = EXCLUDED.co_insurance_policy, co_address = EXCLUDED.co_address, co_city = EXCLUDED.co_city, co_postal_code = EXCLUDED.co_postal_code,
+        co_website = EXCLUDED.co_website, co_source_created_at = EXCLUDED.co_source_created_at, co_source_updated_at = EXCLUDED.co_source_updated_at,
+        cct_full_name = EXCLUDED.cct_full_name, cct_email = EXCLUDED.cct_email, cct_role = EXCLUDED.cct_role, cct_phone = EXCLUDED.cct_phone,
+        din_declaration_id = EXCLUDED.din_declaration_id, din_first_name = EXCLUDED.din_first_name, din_last_name = EXCLUDED.din_last_name,
+        din_internship_type = EXCLUDED.din_internship_type, din_position = EXCLUDED.din_position, din_start_date = EXCLUDED.din_start_date, din_end_date = EXCLUDED.din_end_date,
+        din_tutor_name = EXCLUDED.din_tutor_name, din_tutor_email = EXCLUDED.din_tutor_email, din_tutor_phone = EXCLUDED.din_tutor_phone, din_notes = EXCLUDED.din_notes,
+        din_accepted_terms = EXCLUDED.din_accepted_terms, din_programme_class_level = EXCLUDED.din_programme_class_level,
+        din_grid_first_name = EXCLUDED.din_grid_first_name, din_grid_last_name = EXCLUDED.din_grid_last_name, din_birth_date = EXCLUDED.din_birth_date,
+        din_student_current_address = EXCLUDED.din_student_current_address, din_student_postal_code = EXCLUDED.din_student_postal_code, din_student_city = EXCLUDED.din_student_city,
+        din_student_mobile_phone = EXCLUDED.din_student_mobile_phone, din_student_ducasse_email = EXCLUDED.din_student_ducasse_email, din_student_personal_email = EXCLUDED.din_student_personal_email,
+        din_host_company_name = EXCLUDED.din_host_company_name, din_host_company_email = EXCLUDED.din_host_company_email,
+        din_host_supervisor_chef_name = EXCLUDED.din_host_supervisor_chef_name, din_host_supervisor_chef_email = EXCLUDED.din_host_supervisor_chef_email,
+        din_host_company_phone = EXCLUDED.din_host_company_phone, din_host_company_country = EXCLUDED.din_host_company_country, din_host_company_city = EXCLUDED.din_host_company_city,
+        din_host_stage_start_date = EXCLUDED.din_host_stage_start_date, din_host_stage_end_date = EXCLUDED.din_host_stage_end_date,
+        din_head_of_pedagogy = EXCLUDED.din_head_of_pedagogy, din_civil_liability_insurance_ref = EXCLUDED.din_civil_liability_insurance_ref,
+        din_intern_first_name = EXCLUDED.din_intern_first_name, din_intern_last_name = EXCLUDED.din_intern_last_name, din_intake_internship_type = EXCLUDED.din_intake_internship_type,
+        din_company_side_start_date = EXCLUDED.din_company_side_start_date, din_company_side_end_date = EXCLUDED.din_company_side_end_date,
+        din_company_legal_name = EXCLUDED.din_company_legal_name, din_company_trade_name = EXCLUDED.din_company_trade_name, din_company_business_activity = EXCLUDED.din_company_business_activity,
+        din_company_siret = EXCLUDED.din_company_siret, din_insurance_company_name = EXCLUDED.din_insurance_company_name, din_insurance_policy_number = EXCLUDED.din_insurance_policy_number,
+        din_company_address = EXCLUDED.din_company_address, din_company_postal_code = EXCLUDED.din_company_postal_code, din_company_city = EXCLUDED.din_company_city,
+        din_hr_representative_name = EXCLUDED.din_hr_representative_name, din_hr_representative_title = EXCLUDED.din_hr_representative_title,
+        din_hr_email = EXCLUDED.din_hr_email, din_hr_phone = EXCLUDED.din_hr_phone,
+        din_tutor_chef_name = EXCLUDED.din_tutor_chef_name, din_tutor_chef_position = EXCLUDED.din_tutor_chef_position, din_tutor_chef_email = EXCLUDED.din_tutor_chef_email, din_tutor_chef_phone = EXCLUDED.din_tutor_chef_phone,
+        din_weekly_schedule = EXCLUDED.din_weekly_schedule, din_compensation_monthly_or_hourly = EXCLUDED.din_compensation_monthly_or_hourly,
+        din_benefits_offered = EXCLUDED.din_benefits_offered, din_tasks_assigned = EXCLUDED.din_tasks_assigned,
+        din_partner_form_extras_text = EXCLUDED.din_partner_form_extras_text, din_raw_payload_text = EXCLUDED.din_raw_payload_text;
 END $$;
 
 -- Trigger : approbation soumission étudiant
 CREATE OR REPLACE FUNCTION trg_submission_after_review()
 RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE
-    v_season intake_season;
-    v_year   INT;
 BEGIN
     IF NEW.status = 'approved'
        AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status) THEN
-        SELECT season, year INTO v_season, v_year
-          FROM promotion WHERE id = NEW.promotion_id;
-        PERFORM try_merge_internship(NEW.student_id, v_season, v_year);
+        PERFORM try_merge_internship(NEW.student_id);
     END IF;
     RETURN NEW;
 END $$;
@@ -563,13 +775,8 @@ FOR EACH ROW EXECUTE FUNCTION trg_submission_after_review();
 -- Trigger : déclaration entreprise (insert/maj d'un stagiaire)
 CREATE OR REPLACE FUNCTION trg_declared_intern_after_change()
 RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE
-    v_season intake_season;
-    v_year   INT;
 BEGIN
-    SELECT season, year INTO v_season, v_year
-      FROM company_declaration WHERE id = NEW.declaration_id;
-    PERFORM try_merge_internship(NEW.student_id, v_season, v_year);
+    PERFORM try_merge_internship(NEW.student_id);
     RETURN NEW;
 END $$;
 
@@ -629,53 +836,12 @@ SELECT s.student_id,
          ORDER BY ss.submitted_at DESC LIMIT 1
   ) sub ON TRUE;
 
--- Vue 3 statuts (matched / student_only / company_only)
+-- Vue admin : lignes appariées (détail complet dans merged_internship). Les cas partiels sont listés via l’API (requêtes séparées).
 DROP VIEW IF EXISTS v_merged_overview CASCADE;
 
 CREATE VIEW v_merged_overview AS
-SELECT m.id, m.student_id, m.student_uuid, m.submission_id, m.company_id, m.declared_intern_id,
-       m.season, m.year,
-       m.student_full_name, m.student_email,
-       m.company_name, m.company_country,
-       m.position, m.start_date, m.end_date,
-       m.tutor_name, m.tutor_email,
-       m.merged_at, m.updated_at,
-       m.convention_record,
-       'matched'::text AS match_status
-  FROM merged_internship m
-UNION ALL
-SELECT NULL::uuid, ss.student_id, ss.student_uuid, ss.id, NULL::uuid, NULL::uuid,
-       p.season, p.year,
-       st.first_name || ' ' || st.last_name, st.email,
-       ss.company_name, ss.company_country,
-       ss.position, ss.start_date, ss.end_date,
-       ss.tutor_name, ss.tutor_email, ss.submitted_at, ss.updated_at,
-       '{}'::jsonb,
-       'student_only'::text
-  FROM student_submission ss
-  JOIN student st ON st.id = ss.student_uuid
-  JOIN promotion p ON p.id = ss.promotion_id
- WHERE ss.status = 'approved'
-   AND NOT EXISTS (
-        SELECT 1 FROM merged_internship m2
-         WHERE m2.student_id = ss.student_id
-           AND m2.season = p.season AND m2.year = p.year)
-UNION ALL
-SELECT NULL::uuid, di.student_id, NULL::uuid, NULL::uuid, c.id, di.id,
-       cd.season, cd.year,
-       NULL::text, NULL::text,
-       c.name, c.country,
-       di.position, di.start_date, di.end_date,
-       di.tutor_name, di.tutor_email, cd.submitted_at, cd.updated_at,
-       '{}'::jsonb,
-       'company_only'::text
-  FROM declared_intern di
-  JOIN company_declaration cd ON cd.id = di.declaration_id
-  JOIN company c ON c.id = cd.company_id
- WHERE NOT EXISTS (
-        SELECT 1 FROM merged_internship m2
-         WHERE m2.student_id = di.student_id
-           AND m2.season = cd.season AND m2.year = cd.year);
+SELECT m.*, 'matched'::text AS match_status
+  FROM merged_internship m;
 
 -- =====================================================================
 -- 11. SEED MINIMAL (à supprimer en prod)
