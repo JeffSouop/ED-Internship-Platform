@@ -146,6 +146,69 @@ const emptyForm = (): PartnerForm => ({
   dataConsent: "",
 });
 
+type PartnerFieldIssue = { id: string; message: string };
+
+/** Retourne les problèmes étape 1 dans l’ordre du formulaire (pour scroll + toast). */
+function collectPartnerStep1Issues(f: PartnerForm): PartnerFieldIssue[] {
+  const issues: PartnerFieldIssue[] = [];
+  if (!f.legalName.trim()) issues.push({ id: "partner-legalName", message: "Indiquez le nom légal de l’entreprise." });
+  if (!f.country.trim()) issues.push({ id: "partner-country", message: "Indiquez le pays." });
+  if (!f.tradeName.trim()) issues.push({ id: "partner-tradeName", message: "Indiquez le nom commercial." });
+  if (!f.activity) issues.push({ id: "partner-activity", message: "Sélectionnez l’activité de l’entreprise." });
+  if (!f.siret.trim()) issues.push({ id: "partner-siret", message: "Indiquez le SIRET (ou équivalent)." });
+  if (!f.insuranceCompany.trim())
+    issues.push({ id: "partner-insuranceCompany", message: "Indiquez le nom de la compagnie d’assurance." });
+  if (!f.insurancePolicy.trim()) issues.push({ id: "partner-insurancePolicy", message: "Indiquez le numéro de police d’assurance." });
+  if (!f.street.trim()) issues.push({ id: "partner-street", message: "Indiquez l’adresse de l’entreprise." });
+  if (!f.postalCode.trim()) issues.push({ id: "partner-postalCode", message: "Indiquez le code postal." });
+  if (!f.city.trim()) issues.push({ id: "partner-city", message: "Indiquez la ville." });
+  if (!f.hrName.trim()) issues.push({ id: "partner-hrName", message: "Indiquez le nom du représentant RH." });
+  if (!f.hrTitle.trim()) issues.push({ id: "partner-hrTitle", message: "Indiquez le titre du représentant RH." });
+  if (!f.hrEmail.trim()) issues.push({ id: "partner-hrEmail", message: "Indiquez l’email du RH." });
+  if (!f.hrPhone.trim()) issues.push({ id: "partner-hrPhone", message: "Indiquez le téléphone du RH." });
+  if (!f.tutorName.trim()) issues.push({ id: "partner-tutorName", message: "Indiquez le nom du chef / tuteur." });
+  if (!f.tutorPosition.trim()) issues.push({ id: "partner-tutorPosition", message: "Indiquez la fonction du tuteur." });
+  if (!f.tutorEmail.trim()) issues.push({ id: "partner-tutorEmail", message: "Indiquez l’email du tuteur." });
+  if (!f.tutorPhone.trim()) issues.push({ id: "partner-tutorPhone", message: "Indiquez le téléphone du tuteur." });
+  if (
+    f.hrEmail.trim() &&
+    f.tutorEmail.trim() &&
+    f.hrEmail.trim().toLowerCase() === f.tutorEmail.trim().toLowerCase()
+  ) {
+    issues.push({
+      id: "partner-tutorEmail",
+      message: "L’email du tuteur doit être différent de l’email du RH (exigence de la base).",
+    });
+  }
+  return issues;
+}
+
+function collectPartnerStep2Issues(f: PartnerForm, benefits: string[]): PartnerFieldIssue[] {
+  const issues: PartnerFieldIssue[] = [];
+  if (!f.studentId.trim()) issues.push({ id: "partner-studentId", message: "Indiquez l’identifiant étudiant (sans espaces)." });
+  if (!f.firstName.trim()) issues.push({ id: "partner-firstName", message: "Indiquez le prénom du stagiaire." });
+  if (!f.lastName.trim()) issues.push({ id: "partner-lastName", message: "Indiquez le nom du stagiaire." });
+  if (!f.internshipType) issues.push({ id: "partner-internshipType", message: "Choisissez le type de stage (Culinary / Pastry)." });
+  if (!f.startDate) issues.push({ id: "partner-startDate", message: "Indiquez la date de début de stage." });
+  if (!f.endDate) issues.push({ id: "partner-endDate", message: "Indiquez la date de fin de stage." });
+  if (!f.weeklySchedule) issues.push({ id: "partner-weeklySchedule", message: "Indiquez le planning hebdomadaire (confirmer ou autre)." });
+  if (f.weeklySchedule === "other" && !f.weeklyScheduleComment.trim()) {
+    issues.push({ id: "partner-weeklyScheduleComment", message: "Précisez le planning dans le champ commentaire." });
+  }
+  if (!f.allowance.trim()) issues.push({ id: "partner-allowance", message: "Indiquez la gratification (mensuelle ou horaire)." });
+  if (benefits.length === 0) issues.push({ id: "partner-benefits", message: "Cochez au moins un avantage proposé." });
+  if (f.dataConsent !== "yes") {
+    issues.push({ id: "partner-dataConsent", message: "Vous devez accepter le traitement des données (réponse « Oui ») pour envoyer la fiche." });
+  }
+  return issues;
+}
+
+function scrollToPartnerField(fieldId: string) {
+  window.requestAnimationFrame(() => {
+    document.getElementById(fieldId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
 function PartnerRegistrationForm({
   initialCompany,
   onSuccess,
@@ -306,40 +369,43 @@ function PartnerRegistrationForm({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const canProceedStep1 =
-    form.legalName.trim() &&
-    form.country.trim() &&
-    form.tradeName.trim() &&
-    form.activity &&
-    form.siret.trim() &&
-    form.insuranceCompany.trim() &&
-    form.insurancePolicy.trim() &&
-    form.street.trim() &&
-    form.postalCode.trim() &&
-    form.city.trim() &&
-    form.hrName.trim() &&
-    form.hrTitle.trim() &&
-    form.hrEmail.trim() &&
-    form.hrPhone.trim() &&
-    form.tutorName.trim() &&
-    form.tutorPosition.trim() &&
-    form.tutorEmail.trim() &&
-    form.tutorPhone.trim() &&
-    form.hrEmail.trim().toLowerCase() !== form.tutorEmail.trim().toLowerCase();
+  function showPartnerIssues(issues: PartnerFieldIssue[]) {
+    if (issues.length === 0) return;
+    const more = issues.length - 1;
+    toast.error(issues[0].message, {
+      description:
+        more > 0
+          ? `${more} autre(s) point(s) à corriger — faites défiler le formulaire (champs marqués *).`
+          : undefined,
+    });
+    scrollToPartnerField(issues[0].id);
+  }
 
-  const canSubmit =
-    canProceedStep1 &&
-    form.studentId.trim() &&
-    form.firstName.trim() &&
-    form.lastName.trim() &&
-    form.internshipType &&
-    form.startDate &&
-    form.endDate &&
-    form.weeklySchedule &&
-    (form.weeklySchedule !== "other" || form.weeklyScheduleComment.trim()) &&
-    form.allowance.trim() &&
-    benefits.length > 0 &&
-    form.dataConsent === "yes";
+  function handleStep1Continue() {
+    const issues = collectPartnerStep1Issues(form);
+    if (issues.length) {
+      showPartnerIssues(issues);
+      return;
+    }
+    setFormStep(2);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleFinalSubmit() {
+    const step1 = collectPartnerStep1Issues(form);
+    if (step1.length) {
+      setFormStep(1);
+      toast.error("Étape entreprise incomplète ou invalide", { description: step1[0].message });
+      setTimeout(() => scrollToPartnerField(step1[0].id), 80);
+      return;
+    }
+    const step2 = collectPartnerStep2Issues(form, benefits);
+    if (step2.length) {
+      showPartnerIssues(step2);
+      return;
+    }
+    submitMut.mutate();
+  }
 
   return (
     <div className="space-y-10">
@@ -385,7 +451,13 @@ function PartnerRegistrationForm({
           Entreprise — Section 3 · ABOUT THE COMPANY
         </h2>
 
-        <Question n={7} required titleEn="Legal name of the company" titleFr="Nom légal de l'entreprise">
+        <Question
+          fieldId="partner-legalName"
+          n={7}
+          required
+          titleEn="Legal name of the company"
+          titleFr="Nom légal de l'entreprise"
+        >
           <p className="mb-2 text-xs text-muted-foreground">
             Saisissez le nom légal puis sélectionnez une suggestion si votre entreprise est déjà en base.
           </p>
@@ -436,11 +508,23 @@ function PartnerRegistrationForm({
           )}
         </Question>
 
-        <Question n={8} required titleEn="Trade name of the company" titleFr="Nom commercial de l'entreprise">
+        <Question
+          fieldId="partner-tradeName"
+          n={8}
+          required
+          titleEn="Trade name of the company"
+          titleFr="Nom commercial de l'entreprise"
+        >
           <Input value={form.tradeName} onChange={(e) => patch("tradeName", e.target.value)} />
         </Question>
 
-        <Question n={9} required titleEn="Your company's business activity" titleFr="Activité de l'entreprise">
+        <Question
+          fieldId="partner-activity"
+          n={9}
+          required
+          titleEn="Your company's business activity"
+          titleFr="Activité de l'entreprise"
+        >
           <Select value={form.activity} onValueChange={(v) => patch("activity", v)}>
             <SelectTrigger>
               <SelectValue placeholder="Sélectionnez…" />
@@ -456,6 +540,7 @@ function PartnerRegistrationForm({
         </Question>
 
         <Question
+          fieldId="partner-siret"
           n={10}
           required
           titleEn="Company’s legal registration number (e.g. French SIRET)"
@@ -464,27 +549,45 @@ function PartnerRegistrationForm({
           <Input value={form.siret} onChange={(e) => patch("siret", e.target.value)} />
         </Question>
 
-        <Question n={11} required titleEn="Name of your insurance company" titleFr="Nom de la compagnie d'assurance">
+        <Question
+          fieldId="partner-insuranceCompany"
+          n={11}
+          required
+          titleEn="Name of your insurance company"
+          titleFr="Nom de la compagnie d'assurance"
+        >
           <Input value={form.insuranceCompany} onChange={(e) => patch("insuranceCompany", e.target.value)} />
         </Question>
 
-        <Question n={12} required titleEn="Insurance policy number" titleFr="Numéro de police d'assurance">
+        <Question
+          fieldId="partner-insurancePolicy"
+          n={12}
+          required
+          titleEn="Insurance policy number"
+          titleFr="Numéro de police d'assurance"
+        >
           <Input value={form.insurancePolicy} onChange={(e) => patch("insurancePolicy", e.target.value)} />
         </Question>
 
-        <Question n={13} required titleEn="Company address" titleFr="Adresse de l'entreprise">
+        <Question
+          fieldId="partner-street"
+          n={13}
+          required
+          titleEn="Company address"
+          titleFr="Adresse de l'entreprise"
+        >
           <Input value={form.street} onChange={(e) => patch("street", e.target.value)} />
         </Question>
 
-        <Question n={14} required titleEn="Postal code" titleFr="Code postal">
+        <Question fieldId="partner-postalCode" n={14} required titleEn="Postal code" titleFr="Code postal">
           <Input value={form.postalCode} onChange={(e) => patch("postalCode", e.target.value)} />
         </Question>
 
-        <Question n={15} required titleEn="City" titleFr="Ville">
+        <Question fieldId="partner-city" n={15} required titleEn="City" titleFr="Ville">
           <Input value={form.city} onChange={(e) => patch("city", e.target.value)} />
         </Question>
 
-        <div className="space-y-1.5">
+        <div id="partner-country" className="scroll-mt-28 space-y-1.5">
           <Label className="text-sm">
             Pays / Country <span className="text-destructive">*</span>
           </Label>
@@ -503,6 +606,7 @@ function PartnerRegistrationForm({
         </h2>
 
         <Question
+          fieldId="partner-hrName"
           n={16}
           required
           titleEn="Name of the HR representative (Ms./Mr., First Name SURNAME)"
@@ -511,48 +615,52 @@ function PartnerRegistrationForm({
           <Input value={form.hrName} onChange={(e) => patch("hrName", e.target.value)} />
         </Question>
 
-        <Question n={17} required titleEn="Title of the HR" titleFr="Titre du représentant RH">
+        <Question fieldId="partner-hrTitle" n={17} required titleEn="Title of the HR" titleFr="Titre du représentant RH">
           <Input value={form.hrTitle} onChange={(e) => patch("hrTitle", e.target.value)} />
         </Question>
 
-        <Question n={18} required titleEn="HR email address" titleFr="Email du RH">
+        <Question fieldId="partner-hrEmail" n={18} required titleEn="HR email address" titleFr="Email du RH">
           <Input type="email" value={form.hrEmail} onChange={(e) => patch("hrEmail", e.target.value)} />
         </Question>
 
-        <Question n={19} required titleEn="HR phone number" titleFr="Téléphone du RH">
+        <Question fieldId="partner-hrPhone" n={19} required titleEn="HR phone number" titleFr="Téléphone du RH">
           <Input type="tel" value={form.hrPhone} onChange={(e) => patch("hrPhone", e.target.value)} />
         </Question>
 
-        <Question n={20} required titleEn="Name of the tutor chef" titleFr="Nom / prénom du chef ou cheffe tutrice">
+        <Question
+          fieldId="partner-tutorName"
+          n={20}
+          required
+          titleEn="Name of the tutor chef"
+          titleFr="Nom / prénom du chef ou cheffe tutrice"
+        >
           <Input value={form.tutorName} onChange={(e) => patch("tutorName", e.target.value)} />
         </Question>
 
-        <Question n={21} required titleEn="Tutor chef's position" titleFr="Fonction du maître de stage">
+        <Question
+          fieldId="partner-tutorPosition"
+          n={21}
+          required
+          titleEn="Tutor chef's position"
+          titleFr="Fonction du maître de stage"
+        >
           <Input value={form.tutorPosition} onChange={(e) => patch("tutorPosition", e.target.value)} />
         </Question>
 
-        <Question n={22} required titleEn="Tutor chef's email" titleFr="Email du chef tutrice">
+        <Question fieldId="partner-tutorEmail" n={22} required titleEn="Tutor chef's email" titleFr="Email du chef tutrice">
           <p className="mb-2 text-xs text-muted-foreground">
             Doit être différent de l&apos;e-mail RH (exigence technique de la base).
           </p>
           <Input type="email" value={form.tutorEmail} onChange={(e) => patch("tutorEmail", e.target.value)} />
         </Question>
 
-        <Question n={23} required titleEn="Tutor chef's phone" titleFr="Téléphone du chef tutrice">
+        <Question fieldId="partner-tutorPhone" n={23} required titleEn="Tutor chef's phone" titleFr="Téléphone du chef tutrice">
           <Input type="tel" value={form.tutorPhone} onChange={(e) => patch("tutorPhone", e.target.value)} />
         </Question>
       </section>
 
       <div className="flex flex-col gap-3 border-t border-border pt-8 sm:flex-row sm:justify-end">
-        <Button
-          type="button"
-          size="lg"
-          disabled={!canProceedStep1}
-          onClick={() => {
-            setFormStep(2);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-        >
+        <Button type="button" size="lg" onClick={handleStep1Continue}>
           Continuer — stagiaire &amp; stage
         </Button>
       </div>
@@ -583,7 +691,7 @@ function PartnerRegistrationForm({
           Section 2 — A PROPOS DE L&apos;ETUDIANT · ABOUT THE STUDENT
         </h2>
 
-        <Question n={1} required titleEn="Student ID (without blanks)" titleFr="Numéro d'identifiant (sans espaces)">
+        <Question fieldId="partner-studentId" n={1} required titleEn="Student ID (without blanks)" titleFr="Numéro d'identifiant (sans espaces)">
           <p className="mb-2 text-xs text-muted-foreground">
             Cet identifiant se trouve dans le mail que vous avez reçu ; il permet de rattacher votre déclaration
             au dossier de l&apos;étudiant (même numéro que sur la convention étudiant). — The student ID is
@@ -592,11 +700,11 @@ function PartnerRegistrationForm({
           <Input value={form.studentId} onChange={(e) => patch("studentId", e.target.value)} placeholder="Entrez votre réponse" />
         </Question>
 
-        <Question n={2} required titleEn="First name of the intern" titleFr="Prénom du stagiaire">
+        <Question fieldId="partner-firstName" n={2} required titleEn="First name of the intern" titleFr="Prénom du stagiaire">
           <Input value={form.firstName} onChange={(e) => patch("firstName", e.target.value)} />
         </Question>
 
-        <Question n={3} required titleEn="Last name of the intern (CAPITAL LETTERS)" titleFr="Nom de famille (lettres capitales)">
+        <Question fieldId="partner-lastName" n={3} required titleEn="Last name of the intern (CAPITAL LETTERS)" titleFr="Nom de famille (lettres capitales)">
           <Input
             value={form.lastName}
             onChange={(e) => patch("lastName", e.target.value.toUpperCase())}
@@ -604,7 +712,7 @@ function PartnerRegistrationForm({
           />
         </Question>
 
-        <Question n={4} required titleEn="Type of internship" titleFr="Type de stage">
+        <Question fieldId="partner-internshipType" n={4} required titleEn="Type of internship" titleFr="Type de stage">
           <RadioGroup
             value={form.internshipType || undefined}
             onValueChange={(v) => patch("internshipType", v as PartnerForm["internshipType"])}
@@ -621,14 +729,14 @@ function PartnerRegistrationForm({
           </RadioGroup>
         </Question>
 
-        <Question n={5} required titleEn="Start date" titleFr="Date de début de stage">
+        <Question fieldId="partner-startDate" n={5} required titleEn="Start date" titleFr="Date de début de stage">
           <p className="mb-2 text-xs text-amber-800 dark:text-amber-200">
             Make sure the start date is on Monday — la date de début doit être un lundi.
           </p>
           <Input type="date" value={form.startDate} onChange={(e) => patch("startDate", e.target.value)} />
         </Question>
 
-        <Question n={6} required titleEn="End date" titleFr="Date de fin de stage">
+        <Question fieldId="partner-endDate" n={6} required titleEn="End date" titleFr="Date de fin de stage">
           <div className="mb-2 space-y-1 text-xs text-amber-800 dark:text-amber-200">
             <p>Internship duration is 24 weeks for Bachelor, 13 weeks for any other program.</p>
             <p>End day is a Sunday — la date de fin de stage est un dimanche.</p>
@@ -640,7 +748,7 @@ function PartnerRegistrationForm({
       <section className="space-y-8 rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="border-b border-border pb-2 text-lg font-semibold">Section 5 — Conditions &amp; Benefits</h2>
 
-        <Question n={24} required titleEn="Weekly schedule" titleFr="Planning hebdomadaire">
+        <Question fieldId="partner-weeklySchedule" n={24} required titleEn="Weekly schedule" titleFr="Planning hebdomadaire">
           <div className="mb-3 rounded-md border border-muted bg-muted/40 p-3 text-xs leading-relaxed">
             The weekly working hours are 39 hours per week, and the weekly schedule includes two consecutive
             days off.
@@ -663,17 +771,25 @@ function PartnerRegistrationForm({
             </label>
           </RadioGroup>
           {form.weeklySchedule === "other" && (
-            <Textarea
-              className="mt-2"
-              placeholder="Commentaires / Comments"
-              value={form.weeklyScheduleComment}
-              onChange={(e) => patch("weeklyScheduleComment", e.target.value)}
-              rows={3}
-            />
+            <div id="partner-weeklyScheduleComment" className="scroll-mt-28">
+              <Textarea
+                className="mt-2"
+                placeholder="Commentaires / Comments"
+                value={form.weeklyScheduleComment}
+                onChange={(e) => patch("weeklyScheduleComment", e.target.value)}
+                rows={3}
+              />
+            </div>
           )}
         </Question>
 
-        <Question n={25} required titleEn="Internship allowance (monthly or hourly)" titleFr="Gratification">
+        <Question
+          fieldId="partner-allowance"
+          n={25}
+          required
+          titleEn="Internship allowance (monthly or hourly)"
+          titleFr="Gratification"
+        >
           <div className="mb-2 text-xs text-muted-foreground leading-relaxed">
             En France, la rémunération d&apos;un stagiaire est obligatoire au-delà de 8 semaines (minimum 4,50
             €/h). — In France, compensation is mandatory for internships lasting more than 8 weeks (min. €4.50/h).
@@ -681,7 +797,7 @@ function PartnerRegistrationForm({
           <Input value={form.allowance} onChange={(e) => patch("allowance", e.target.value)} />
         </Question>
 
-        <div className="space-y-3">
+        <div id="partner-benefits" className="scroll-mt-28 space-y-3">
           <div className="text-sm leading-snug">
             <span className="font-medium text-foreground">26. </span>
             <span className="text-foreground">Benefits offered — Avantages offerts</span>
@@ -701,7 +817,13 @@ function PartnerRegistrationForm({
           </div>
         </div>
 
-        <Question n={27} required titleEn="Consent to use your data for the internship agreement" titleFr="Consentement données">
+        <Question
+          fieldId="partner-dataConsent"
+          n={27}
+          required
+          titleEn="Consent to use your data for the internship agreement"
+          titleFr="Consentement données"
+        >
           <RadioGroup
             value={form.dataConsent}
             onValueChange={(v) => patch("dataConsent", v as PartnerForm["dataConsent"])}
@@ -734,7 +856,7 @@ function PartnerRegistrationForm({
         >
           Retour — entreprise &amp; contacts
         </Button>
-        <Button size="lg" disabled={!canSubmit || submitMut.isPending} onClick={() => submitMut.mutate()}>
+        <Button size="lg" disabled={submitMut.isPending} onClick={handleFinalSubmit}>
           {submitMut.isPending ? "Envoi…" : "Enregistrer la fiche"}
         </Button>
       </div>
@@ -770,19 +892,22 @@ function FormStepper({ step }: { step: 1 | 2 }) {
 
 function Question({
   n,
+  fieldId,
   titleEn,
   titleFr,
   required,
   children,
 }: {
   n: number;
+  /** Ancre pour faire défiler jusqu’au champ en erreur */
+  fieldId?: string;
   titleEn: string;
   titleFr: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="scroll-mt-28 space-y-3" id={fieldId}>
       <div className="text-sm leading-snug">
         <span className="font-medium text-foreground">{n}. </span>
         <span className="text-foreground">

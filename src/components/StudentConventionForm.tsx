@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, type FieldErrors, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { getStudent, getSubmissionByStudent, upsertStudentSubmission } from "@/services/students";
@@ -38,6 +38,8 @@ const PROGRAMMES = [
 const CAMPUSES = ["Paris", "Yssingeaux (ENSP)"] as const;
 
 const STORED_MISSIONS_FENCE = "--- Données convention (formulaire étudiant) ---";
+
+const REQUIRED_FIELD = "Ce champ est obligatoire.";
 
 /** Retire le préfixe métadonnées ajouté par l’API pour rééditer sans dupliquer le bloc. */
 function extractMissionNarrative(stored: string): string {
@@ -77,6 +79,34 @@ interface FormValues {
   tutorEmail: string;
   civilLiabilityInsurance: string;
 }
+
+/** Ordre d’affichage du formulaire — pour défiler vers la première erreur à la soumission. */
+const CONVENTION_SCROLL_ORDER: (keyof FormValues)[] = [
+  "tutorName",
+  "careerHeadName",
+  "acceptedTerms",
+  "email",
+  "studentId",
+  "firstName",
+  "lastName",
+  "birthDate",
+  "studentAddress",
+  "studentPostalCode",
+  "studentCity",
+  "phone",
+  "personalEmail",
+  "companyName",
+  "companyEmail",
+  "companyPhone",
+  "companyCity",
+  "companyCountry",
+  "tutorEmail",
+  "startDate",
+  "endDate",
+  "civilLiabilityInsurance",
+  "position",
+  "missions",
+];
 
 function buildEmptyFormDefaults(prefillStudentId?: string): FormValues {
   return {
@@ -119,6 +149,7 @@ export function StudentConventionForm({
 
   const form = useForm<FormValues>({
     defaultValues: buildEmptyFormDefaults(prefillStudentId),
+    shouldFocusError: true,
   });
   const watchedStudentId = form.watch("studentId");
   const effectiveStudentKey =
@@ -282,7 +313,24 @@ export function StudentConventionForm({
         </div>
 
         <form
-          onSubmit={handleSubmit((v) => mutation.mutate(v))}
+          onSubmit={handleSubmit(
+            (v) => mutation.mutate(v),
+            (errors: FieldErrors<FormValues>) => {
+              const first = CONVENTION_SCROLL_ORDER.find((k) => errors[k]);
+              if (!first) return;
+              const err = errors[first];
+              const msg =
+                typeof err?.message === "string"
+                  ? err.message
+                  : err?.message != null
+                    ? String(err.message)
+                    : REQUIRED_FIELD;
+              toast.error(msg);
+              document
+                .getElementById(`cf-${String(first)}`)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            },
+          )}
           className={`space-y-10 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8 ${disabledCls}`}
         >
           <ImportantNotice />
@@ -291,6 +339,7 @@ export function StudentConventionForm({
 
           <div className="space-y-8">
             <Question
+              anchor="tutorName"
               n={1}
               title={
                 <>
@@ -300,10 +349,11 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input placeholder="Entrez votre réponse" {...register("tutorName", { required: true })} />
+              <Input placeholder="Entrez votre réponse" {...register("tutorName", { required: REQUIRED_FIELD })} />
             </Question>
 
             <Question
+              anchor="careerHeadName"
               n={2}
               title={
                 <>
@@ -315,11 +365,12 @@ export function StudentConventionForm({
             >
               <Input
                 placeholder="Charlotte Pedersen"
-                {...register("careerHeadName", { required: true })}
+                {...register("careerHeadName", { required: REQUIRED_FIELD })}
               />
             </Question>
 
             <Question
+              anchor="acceptedTerms"
               n={3}
               title={
                 <>
@@ -355,15 +406,11 @@ export function StudentConventionForm({
               />
             </Question>
 
-            <Question
-              n={4}
-              title={<>Your Ecole Ducasse email — Votre adresse email École Ducasse</>}
-              required
-            >
+            <Question anchor="email" n={4} title={<>Your Ecole Ducasse email — Votre adresse email École Ducasse</>} required>
               <Input
                 type="email"
                 placeholder="prenom.nom@ecoleducasse.com"
-                {...register("email", { required: true })}
+                {...register("email", { required: REQUIRED_FIELD })}
               />
             </Question>
 
@@ -391,6 +438,7 @@ export function StudentConventionForm({
             </Question>
 
             <Question
+              anchor="studentId"
               n={6}
               title={
                 <>
@@ -400,42 +448,42 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input {...register("studentId", { required: true })} disabled={!editable} />
+              <Input {...register("studentId", { required: REQUIRED_FIELD })} disabled={!editable} />
             </Question>
 
-            <Question n={7} title={<>First Name — Prénom</>} required>
-              <Input {...register("firstName", { required: true })} />
+            <Question anchor="firstName" n={7} title={<>First Name — Prénom</>} required>
+              <Input {...register("firstName", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={8} title={<>Last Name — Nom</>} required>
-              <Input {...register("lastName", { required: true })} />
+            <Question anchor="lastName" n={8} title={<>Last Name — Nom</>} required>
+              <Input {...register("lastName", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={9} title={<>Date of birth — Date de naissance</>} required>
-              <Input type="date" {...register("birthDate", { required: true })} />
+            <Question anchor="birthDate" n={9} title={<>Date of birth — Date de naissance</>} required>
+              <Input type="date" {...register("birthDate", { required: REQUIRED_FIELD })} />
               <p className="text-xs text-muted-foreground">
                 Saisie au format calendrier ; affichage habituel jj/MM/aaaa selon votre navigateur.
               </p>
             </Question>
 
-            <Question n={10} title={<>Student Current Address — Adresse actuelle de l&apos;étudiant(e)</>} required>
-              <Input {...register("studentAddress", { required: true })} />
+            <Question anchor="studentAddress" n={10} title={<>Student Current Address — Adresse actuelle de l&apos;étudiant(e)</>} required>
+              <Input {...register("studentAddress", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={11} title={<>Student Postal Code — Code postal</>} required>
-              <Input {...register("studentPostalCode", { required: true })} />
+            <Question anchor="studentPostalCode" n={11} title={<>Student Postal Code — Code postal</>} required>
+              <Input {...register("studentPostalCode", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={12} title={<>Student City — Ville</>} required>
-              <Input {...register("studentCity", { required: true })} />
+            <Question anchor="studentCity" n={12} title={<>Student City — Ville</>} required>
+              <Input {...register("studentCity", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={13} title={<>Student Mobile Phone Number — Numéro de portable</>} required>
-              <Input type="tel" {...register("phone", { required: true })} />
+            <Question anchor="phone" n={13} title={<>Student Mobile Phone Number — Numéro de portable</>} required>
+              <Input type="tel" {...register("phone", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={14} title={<>Student personal email — Email personnel</>} required>
-              <Input type="email" {...register("personalEmail", { required: true })} />
+            <Question anchor="personalEmail" n={14} title={<>Student personal email — Email personnel</>} required>
+              <Input type="email" {...register("personalEmail", { required: REQUIRED_FIELD })} />
             </Question>
 
             <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
@@ -486,11 +534,12 @@ export function StudentConventionForm({
           <SectionTitle title="Section 2 — HOST COMPANY" />
 
           <div className="space-y-8">
-            <Question n={15} title={<>Host company name — Nom de l&apos;établissement d&apos;accueil</>} required>
-              <Input {...register("companyName", { required: true })} />
+            <Question anchor="companyName" n={15} title={<>Host company name — Nom de l&apos;établissement d&apos;accueil</>} required>
+              <Input {...register("companyName", { required: REQUIRED_FIELD })} />
             </Question>
 
             <Question
+              anchor="companyEmail"
               n={16}
               title={
                 <>
@@ -500,19 +549,19 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input type="email" {...register("companyEmail", { required: true })} />
+              <Input type="email" {...register("companyEmail", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={17} title={<>Company Phone Number — Téléphone de l&apos;établissement</>} required>
-              <Input type="tel" {...register("companyPhone", { required: true })} />
+            <Question anchor="companyPhone" n={17} title={<>Company Phone Number — Téléphone de l&apos;établissement</>} required>
+              <Input type="tel" {...register("companyPhone", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={18} title={<>Host company city — Ville de l&apos;établissement</>} required>
-              <Input {...register("companyCity", { required: true })} />
+            <Question anchor="companyCity" n={18} title={<>Host company city — Ville de l&apos;établissement</>} required>
+              <Input {...register("companyCity", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={19} title={<>Host company country — Pays</>} required>
-              <Input {...register("companyCountry", { required: true })} />
+            <Question anchor="companyCountry" n={19} title={<>Host company country — Pays</>} required>
+              <Input {...register("companyCountry", { required: REQUIRED_FIELD })} />
             </Question>
           </div>
 
@@ -520,6 +569,7 @@ export function StudentConventionForm({
 
           <div className="space-y-8">
             <Question
+              anchor="tutorEmail"
               n={20}
               title={
                 <>
@@ -529,27 +579,28 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input type="email" {...register("tutorEmail", { required: true })} />
+              <Input type="email" {...register("tutorEmail", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={21} title={<>Start date — Date de début de stage</>} required>
+            <Question anchor="startDate" n={21} title={<>Start date — Date de début de stage</>} required>
               <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
                 <strong>IMPORTANT :</strong> les stages débutent un <strong>lundi</strong>, même si
                 l&apos;établissement est fermé ce jour-là. Durée indicative : 24 semaines pour le Bachelor,
                 13 semaines pour les autres programmes.
               </div>
-              <Input type="date" {...register("startDate", { required: true })} />
+              <Input type="date" {...register("startDate", { required: REQUIRED_FIELD })} />
             </Question>
 
-            <Question n={22} title={<>End date — Date de fin de stage</>} required>
+            <Question anchor="endDate" n={22} title={<>End date — Date de fin de stage</>} required>
               <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
                 <strong>IMPORTANT :</strong> indiquez une date de fin qui tombe un{" "}
                 <strong>dimanche</strong>, même si votre dernier jour effectif est un autre jour.
               </div>
-              <Input type="date" {...register("endDate", { required: true })} />
+              <Input type="date" {...register("endDate", { required: REQUIRED_FIELD })} />
             </Question>
 
             <Question
+              anchor="civilLiabilityInsurance"
               n={23}
               title={
                 <>
@@ -559,7 +610,7 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input {...register("civilLiabilityInsurance", { required: true })} />
+              <Input {...register("civilLiabilityInsurance", { required: REQUIRED_FIELD })} />
             </Question>
           </div>
 
@@ -567,18 +618,19 @@ export function StudentConventionForm({
 
           <div className="space-y-6">
             <Question
+              anchor="position"
               n={24}
               title={<>Position / fonction pendant le stage — utilisée aussi dans votre dossier interne</>}
               required
             >
               <Input
                 placeholder="Ex. Commis de cuisine, Assistant pâtissier…"
-                {...register("position", { required: true })}
+                {...register("position", { required: REQUIRED_FIELD })}
               />
             </Question>
 
-            <Question n={25} title={<>Description des missions</>} required>
-              <Textarea rows={5} placeholder="Décrivez vos missions principales." {...register("missions", { required: true })} />
+            <Question anchor="missions" n={25} title={<>Description des missions</>} required>
+              <Textarea rows={5} placeholder="Décrivez vos missions principales." {...register("missions", { required: REQUIRED_FIELD })} />
             </Question>
           </div>
 
@@ -637,14 +689,16 @@ function Question({
   title,
   children,
   required,
+  anchor,
 }: {
   n: number;
   title: React.ReactNode;
   children: React.ReactNode;
   required?: boolean;
+  anchor?: keyof FormValues;
 }) {
   return (
-    <div className="space-y-3">
+    <div className={anchor ? "scroll-mt-28 space-y-3" : "space-y-3"} id={anchor ? `cf-${String(anchor)}` : undefined}>
       <div className="text-sm leading-snug">
         <span className="font-medium text-foreground">{n}. </span>
         <span className="text-foreground">{title}</span>
