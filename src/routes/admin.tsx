@@ -9,6 +9,7 @@ import {
   LinkIcon,
   LogOut,
   FileText,
+  ScrollText,
 } from "lucide-react";
 
 import { EcoleDucasseBrand } from "@/components/EcoleDucasseBrand";
@@ -131,6 +132,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
   const items: Array<{ to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }> = [
     { to: "/admin", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
     { to: "/admin/validations", label: "Validations", icon: ClipboardCheck },
+    { to: "/admin/convention", label: "Convention de stage", icon: ScrollText },
     { to: "/admin/form-log", label: "Journal formulaires", icon: FileText },
     { to: "/admin/students", label: "Étudiants", icon: GraduationCap },
     { to: "/admin/companies", label: "Entreprises", icon: Building2 },
