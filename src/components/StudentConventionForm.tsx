@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { getStudent, getSubmissionByStudent, upsertStudentSubmission } from "@/services/students";
 import { INTAKES, type Intake } from "@/lib/types";
+import { SiteHeader } from "@/components/SiteHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -264,7 +265,7 @@ export function StudentConventionForm({
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <Header subtitle="Convention de stage — étudiant" />
+      <Header />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         {submission && (
           <div className="mb-6 space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -287,7 +288,7 @@ export function StudentConventionForm({
         )}
 
         {submission?.status === "approved" && (
-          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <div className="mb-6 rounded-lg border border-success/30 bg-success-muted p-4 text-sm text-success-muted-foreground">
             Votre stage a été validé. Plus rien à faire de votre côté.
           </div>
         )}
@@ -718,21 +719,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Header({ subtitle }: { subtitle: string }) {
-  return (
-    <header className="border-b border-border bg-card shadow-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-serif text-primary-foreground">
-            É
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold">École Ducasse</p>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-        </Link>
-      </div>
-    </header>
-  );
+function Header() {
+  return <SiteHeader />;
 }
 

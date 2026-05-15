@@ -12,7 +12,7 @@ const labels: Record<SubmissionStatus, string> = {
 const styles: Record<SubmissionStatus, string> = {
   pending: "bg-secondary text-secondary-foreground border-border",
   changes_requested: "bg-accent/20 text-accent-foreground border-accent/40",
-  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  approved: "bg-success-muted text-success-muted-foreground border-success/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
   superseded: "bg-muted text-muted-foreground border-border",
 };

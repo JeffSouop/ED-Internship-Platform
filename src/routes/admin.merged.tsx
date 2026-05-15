@@ -128,7 +128,7 @@ function MergedPage() {
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       m.status === "matched"
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-success-muted text-success-muted-foreground"
                         : "bg-secondary text-muted-foreground"
                     }`}
                   >

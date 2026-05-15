@@ -1,26 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 
+import { SiteHeader } from "@/components/SiteHeader";
+
 export const Route = createFileRoute("/student/merci")({
   component: MerciPage,
 });
 
 function MerciPage() {
   return (
-    <div className="min-h-screen bg-muted/40">
-      <header className="border-b border-border bg-card shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-serif text-primary-foreground">
-              É
-            </div>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold">École Ducasse</p>
-              <p className="text-xs text-muted-foreground">Stages &amp; Carrière</p>
-            </div>
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
       <main className="mx-auto max-w-lg px-6 py-16 text-center">
         <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
           <ClipboardCheck className="h-7 w-7" />

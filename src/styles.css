@@ -4,21 +4,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Polices charte — Domaine Sans Text Ducasse (dossier CharteGraphiqueDucasse) */
+@font-face {
+  font-family: "Domaine Sans Text Ducasse";
+  src:
+    url("/fonts/domainesanstextducasse-light.woff") format("woff"),
+    url("/fonts/DomaineSansTextDucasse-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Domaine Sans Text Ducasse";
+  src: url("/fonts/DomaineSansTextDucasse-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Domaine Sans Text Ducasse";
+  src:
+    url("/fonts/domainesanstextducasse-bold.woff") format("woff"),
+    url("/fonts/DomaineSansTextDucasse-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
- * Design system definition.
+ * Charte École Ducasse
+ * — Bleu institutionnel : #194766 (Pantone 7700 C, RVB 25 71 102)
+ * — Neutres : blanc, gris
+ * — Or : accent (boutons secondaires, focus, highlights)
+ * — Rouge / vert : états erreur et succès uniquement
  *
  * The @theme inline block maps CSS custom properties to Tailwind utility
  * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
  * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
  */
 
 @theme inline {
+  --font-sans: "Domaine Sans Text Ducasse", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Domaine Sans Text Ducasse", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -42,6 +71,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-muted: var(--success-muted);
+  --color-success-muted-foreground: var(--success-muted-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -63,73 +96,91 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.99 0.005 80);
-  --foreground: oklch(0.22 0.02 50);
+  /* #194766 — bleu Ducasse */
+  --brand-blue: oklch(0.398 0.071 238.6);
+  --brand-blue-foreground: oklch(0.99 0.003 238);
+  /* Fond légèrement bleuté, textes bleu foncé */
+  --background: oklch(0.97 0.022 238);
+  --foreground: var(--brand-blue);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 50);
+  --card-foreground: var(--brand-blue);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 50);
-  --primary: oklch(0.32 0.04 45);
-  --primary-foreground: oklch(0.98 0.01 80);
-  --secondary: oklch(0.96 0.012 80);
-  --secondary-foreground: oklch(0.32 0.04 45);
-  --muted: oklch(0.96 0.012 80);
-  --muted-foreground: oklch(0.5 0.02 60);
-  --accent: oklch(0.78 0.12 75);
-  --accent-foreground: oklch(0.22 0.04 45);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.98 0.01 80);
-  --border: oklch(0.92 0.01 70);
-  --input: oklch(0.92 0.01 70);
-  --ring: oklch(0.78 0.12 75);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --popover-foreground: var(--brand-blue);
+  --primary: var(--brand-blue);
+  --primary-foreground: var(--brand-blue-foreground);
+  --secondary: oklch(0.92 0.038 238);
+  --secondary-foreground: var(--brand-blue);
+  --muted: oklch(0.94 0.028 238);
+  --muted-foreground: oklch(0.48 0.055 238);
+  /* Or — touches ponctuelles */
+  --accent: oklch(0.76 0.11 78);
+  --accent-foreground: var(--brand-blue);
+  /* Rouge (erreurs, refus) */
+  --destructive: oklch(0.52 0.2 25);
+  --destructive-foreground: oklch(0.99 0.003 238);
+  /* Vert (succès, validation) */
+  --success: oklch(0.52 0.14 155);
+  --success-foreground: oklch(0.99 0.003 155);
+  --success-muted: oklch(0.95 0.04 155);
+  --success-muted-foreground: oklch(0.38 0.1 155);
+  --border: oklch(0.86 0.04 238);
+  --input: oklch(0.88 0.035 238);
+  --ring: var(--brand-blue);
+  --chart-1: var(--brand-blue);
+  --chart-2: oklch(0.76 0.11 78);
+  --chart-3: oklch(0.52 0.14 155);
+  --chart-4: oklch(0.52 0.2 25);
+  --chart-5: oklch(0.6 0.02 238);
+  /* Admin : barre latérale bleue dominante */
+  --sidebar: var(--brand-blue);
+  --sidebar-foreground: var(--brand-blue-foreground);
+  --sidebar-primary: oklch(0.99 0.003 238);
+  --sidebar-primary-foreground: var(--brand-blue);
+  --sidebar-accent: oklch(0.46 0.07 238.6);
+  --sidebar-accent-foreground: var(--brand-blue-foreground);
+  --sidebar-border: oklch(1 0 0 / 14%);
+  --sidebar-ring: oklch(0.76 0.11 78);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
+  --brand-blue: oklch(0.55 0.08 238.6);
+  --brand-blue-foreground: oklch(0.99 0.003 238);
+  --background: oklch(0.2 0.04 238);
+  --foreground: oklch(0.96 0.008 238);
+  --card: oklch(0.24 0.045 238);
+  --card-foreground: oklch(0.96 0.008 238);
+  --popover: oklch(0.24 0.045 238);
+  --popover-foreground: oklch(0.96 0.008 238);
+  --primary: var(--brand-blue);
+  --primary-foreground: var(--brand-blue-foreground);
+  --secondary: oklch(0.3 0.04 238);
+  --secondary-foreground: oklch(0.96 0.008 238);
+  --muted: oklch(0.3 0.04 238);
+  --muted-foreground: oklch(0.7 0.02 238);
+  --accent: oklch(0.72 0.1 78);
+  --accent-foreground: oklch(0.2 0.04 238);
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(0.99 0.003 238);
+  --success: oklch(0.62 0.13 155);
+  --success-foreground: oklch(0.99 0.003 155);
+  --success-muted: oklch(0.28 0.06 155);
+  --success-muted-foreground: oklch(0.82 0.08 155);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --ring: oklch(0.72 0.1 78);
+  --chart-1: var(--brand-blue);
+  --chart-2: oklch(0.72 0.1 78);
+  --chart-3: oklch(0.62 0.13 155);
+  --chart-4: oklch(0.62 0.19 25);
+  --chart-5: oklch(0.55 0.02 238);
+  --sidebar: oklch(0.22 0.045 238);
+  --sidebar-foreground: oklch(0.96 0.008 238);
+  --sidebar-primary: var(--brand-blue);
+  --sidebar-primary-foreground: var(--brand-blue-foreground);
+  --sidebar-accent: oklch(0.3 0.04 238);
+  --sidebar-accent-foreground: oklch(0.96 0.008 238);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.72 0.1 78);
 }
 
 @layer base {
@@ -139,6 +190,37 @@
 
   body {
     background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-weight: 300;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  strong,
+  b {
+    font-weight: 700;
+  }
+
+  button,
+  label,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  ::selection {
+    background-color: oklch(0.398 0.071 238.6 / 25%);
     color: var(--color-foreground);
   }
 }

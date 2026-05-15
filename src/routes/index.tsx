@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraduationCap, Building2, ShieldCheck, ArrowRight } from "lucide-react";
 
+import { SiteHeader } from "@/components/SiteHeader";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -18,29 +20,18 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground font-serif text-lg">
-              É
-            </div>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold text-foreground">École Ducasse</p>
-              <p className="text-xs text-muted-foreground">Stages &amp; Carrière</p>
-            </div>
-          </div>
-          <Link
-            to="/admin"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Espace équipe carrière →
-          </Link>
-        </div>
-      </header>
+      <SiteHeader>
+        <Link
+          to="/admin"
+          className="text-sm text-primary-foreground/80 transition-colors hover:text-primary-foreground"
+        >
+          Espace équipe carrière →
+        </Link>
+      </SiteHeader>
 
       <main className="mx-auto max-w-6xl px-6 py-16">
         <section className="max-w-3xl">
-          <p className="text-sm font-medium uppercase tracking-wider text-accent">
+          <p className="text-sm font-medium uppercase tracking-wider text-primary/80">
             Plateforme interne
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
@@ -107,7 +98,7 @@ function Index() {
         </section>
       </main>
 
-      <footer className="mx-auto max-w-6xl border-t border-border px-6 py-6 text-xs text-muted-foreground">
+      <footer className="mx-auto max-w-6xl border-t border-primary/20 bg-primary px-6 py-6 text-xs text-primary-foreground/80">
         © {new Date().getFullYear()} École Ducasse — Département Stages &amp; Carrière
       </footer>
     </div>
@@ -126,8 +117,8 @@ function Card({
   cta?: { to: string; label: string };
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-primary">
+    <div className="rounded-lg border border-primary/15 bg-card p-6 shadow-sm">
+      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
         {icon}
       </div>
       <h2 className="mt-4 text-base font-semibold text-foreground">{title}</h2>

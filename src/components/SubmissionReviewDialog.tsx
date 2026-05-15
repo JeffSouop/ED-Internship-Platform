@@ -230,7 +230,7 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
                 Demander des modifications
               </Button>
               <Button
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                className="bg-success text-success-foreground hover:bg-success/90"
                 onClick={() => review.mutate("approved")}
                 disabled={review.isPending}
               >

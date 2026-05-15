@@ -10,6 +10,7 @@ import { submitDeclaration } from "@/services/declarations";
 import { currentIntake } from "@/lib/intake";
 import { BENEFIT_OPTIONS, benefitLabel } from "@/lib/partner-form-benefits";
 import { type Company, type LinkToken } from "@/lib/types";
+import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,7 @@ export function CompanyPartnerShell({ initialCompany }: { initialCompany?: Compa
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <Header subtitle="Fiche entreprise d'accueil 26-27" />
+      <Header />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         {phase === "form" && (
           <PartnerRegistrationForm
@@ -493,9 +494,9 @@ function PartnerRegistrationForm({
             </div>
           )}
           {matched && (
-            <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <div className="mt-3 rounded-md border border-success/30 bg-success-muted p-3 text-sm text-success-muted-foreground">
               <p className="font-medium">Entreprise reconnue — données préremplies. Vérifiez et complétez.</p>
-              <p className="mt-2 text-xs font-normal leading-relaxed text-emerald-800/95">
+              <p className="mt-2 text-xs font-normal leading-relaxed opacity-90">
                 Seules les informations déjà stockées pour cette fiche sont reprises. Les champs encore vides
                 n&apos;avaient pas été enregistrés (ou pas encore complétés) — remplissez-les avant la validation
                 finale. Le RH et le tuteur doivent avoir des{" "}
@@ -922,10 +923,10 @@ function Question({
 
 function Done({ company }: { company: Company }) {
   return (
-    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
-      <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-      <h2 className="mt-3 text-lg font-semibold text-emerald-900">Fiche enregistrée</h2>
-      <p className="mt-2 text-sm text-emerald-800">
+    <div className="rounded-lg border border-success/30 bg-success-muted p-8 text-center shadow-sm">
+      <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+      <h2 className="mt-3 text-lg font-semibold text-success-muted-foreground">Fiche enregistrée</h2>
+      <p className="mt-2 text-sm text-success-muted-foreground">
         Merci pour votre collaboration. L&apos;équipe Stages &amp; Carrière a bien reçu les informations pour{" "}
         <strong>{company.name}</strong>.
       </p>
@@ -936,22 +937,8 @@ function Done({ company }: { company: Company }) {
   );
 }
 
-function Header({ subtitle }: { subtitle: string }) {
-  return (
-    <header className="border-b border-border bg-card shadow-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-serif text-primary-foreground">
-            É
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold">École Ducasse</p>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-        </Link>
-      </div>
-    </header>
-  );
+function Header() {
+  return <SiteHeader />;
 }
 
 function Loading() {

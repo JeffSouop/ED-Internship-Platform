@@ -11,6 +11,7 @@ import {
   FileText,
 } from "lucide-react";
 
+import { EcoleDucasseBrand } from "@/components/EcoleDucasseBrand";
 import { adminLogout, isAdminAuthed, tryAdminLogin } from "@/services/admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,12 @@ function LoginGate({ onSuccess }: { onSuccess: () => void }) {
         }}
         className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-card p-6"
       >
+        <EcoleDucasseBrand
+          asLink={false}
+          variant="inverse"
+          className="mb-4 max-w-none rounded-md bg-primary p-4"
+          logoClassName="h-auto w-full max-h-28"
+        />
         <div>
           <h1 className="text-lg font-semibold">Espace équipe carrière</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -134,16 +141,14 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card">
-      <Link to="/" className="flex items-center gap-3 border-b border-border p-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary font-serif text-primary-foreground">
-          É
-        </div>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">École Ducasse</p>
-          <p className="text-xs text-muted-foreground">Stages &amp; Carrière</p>
-        </div>
-      </Link>
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="border-b border-sidebar-border p-5">
+        <EcoleDucasseBrand
+          variant="inverse"
+          logoClassName="h-auto w-full max-h-28"
+          className="w-full max-w-none flex-none"
+        />
+      </div>
       <nav className="flex-1 space-y-1 p-3">
         {items.map(({ to, label, icon: Icon, exact }) => {
           const isActive = exact
@@ -155,8 +160,8 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
               to={to}
               className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                 isActive
-                  ? "bg-secondary font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -167,7 +172,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
       </nav>
       <button
         onClick={onLogout}
-        className="m-3 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+        className="m-3 flex items-center gap-2 rounded-md border border-sidebar-border px-3 py-2 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
       >
         <LogOut className="h-4 w-4" />
         Se déconnecter
