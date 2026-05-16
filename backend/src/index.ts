@@ -38,6 +38,8 @@ import {
   conventionExistsForStudent,
   generateConventionDocx,
 } from "./convention-generate.js";
+import { resolveConventionAbsolutePath } from "./convention-index.js";
+import path from "node:path";
 
 const { Pool } = pg;
 
@@ -1134,6 +1136,28 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
 });
 
 // ——— Convention de stage (Word) ———
+app.get("/api/admin/conventions/preview/:studentId", requireAdmin, (req, res) => {
+  const studentId = req.params.studentId?.trim() ?? "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  const resolved = resolveConventionAbsolutePath(studentId);
+  if (!resolved) {
+    res.status(404).json({ error: "Aucune convention enregistrée pour cet étudiant." });
+    return;
+  }
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${path.basename(resolved.entry.filename)}"`,
+  );
+  res.sendFile(resolved.absolutePath);
+});
+
 app.get("/api/admin/conventions/exists/:studentId", requireAdmin, (req, res) => {
   const studentId = req.params.studentId?.trim() ?? "";
   if (!studentId) {

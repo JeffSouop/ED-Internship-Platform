@@ -74,3 +74,11 @@ export function deleteConventionFileForStudent(studentId: string): void {
   if (fs.existsSync(abs)) fs.unlinkSync(abs);
   clearConventionForStudent(studentId);
 }
+
+export function resolveConventionAbsolutePath(
+  studentId: string,
+): { absolutePath: string; entry: ConventionIndexEntry } | undefined {
+  const entry = getConventionForStudent(studentId);
+  if (!entry) return undefined;
+  return { absolutePath: path.join(PROJECT_ROOT, entry.relativePath), entry };
+}

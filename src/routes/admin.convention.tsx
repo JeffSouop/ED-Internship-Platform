@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2, Sparkles, UserRound } from "lucide-react";
+import { Eye, FileText, Loader2, Sparkles, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/services/conventions";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
+import { ConventionDocxPreview } from "@/components/ConventionDocxPreview";
 import { StudentPickerCombobox } from "@/components/StudentPickerCombobox";
 import {
   AlertDialog,
@@ -32,9 +33,18 @@ function ConventionStagePage() {
   const [studentId, setStudentId] = useState<string>("");
   const [overwriteDialogOpen, setOverwriteDialogOpen] = useState(false);
   const [checkingExists, setCheckingExists] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
+
+  const conventionExistsQ = useQuery({
+    queryKey: ["convention-exists", studentId],
+    queryFn: () => checkConventionExists(studentId),
+    enabled: !!studentId,
+  });
 
   useEffect(() => {
     setOverwriteDialogOpen(false);
+    setPreviewOpen(false);
   }, [studentId]);
 
   const studentsQ = useQuery({ queryKey: ["students"], queryFn: listStudents });
@@ -68,10 +78,17 @@ function ConventionStagePage() {
   const weeksDisplay =
     weeksCount !== null ? `${weeksCount} semaine${weeksCount > 1 ? "s" : ""}` : "—";
 
+  const openPreview = () => {
+    setPreviewOpen(true);
+    setPreviewKey((k) => k + 1);
+  };
+
   const generateM = useMutation({
     mutationFn: (overwrite: boolean) => generateConvention(studentId, overwrite),
-    onSuccess: () => {
+    onSuccess: async () => {
       setOverwriteDialogOpen(false);
+      await conventionExistsQ.refetch();
+      openPreview();
       toast.success("La convention a été générée avec succès.");
     },
     onError: (err: Error) => {
@@ -97,9 +114,16 @@ function ConventionStagePage() {
   }
 
   const generateBusy = checkingExists || generateM.isPending;
+  const showPreview = previewOpen && !!studentId;
 
   return (
-    <div className="space-y-8">
+    <div
+      className={cn(
+        "flex flex-col gap-6 lg:gap-8",
+        showPreview && "xl:flex-row xl:items-start",
+      )}
+    >
+      <div className="min-w-0 flex-1 space-y-8">
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Administration</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
@@ -221,12 +245,60 @@ function ConventionStagePage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <p className="text-xs text-muted-foreground">
-            Les fichiers sont enregistrés dans le dossier <code className="rounded bg-muted px-1">convention/</code> à
-            la racine du projet.
-          </p>
+          {conventionExistsQ.data?.exists && !previewOpen && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={openPreview}
+            >
+              <Eye className="h-4 w-4" />
+              Voir la convention
+            </Button>
+          )}
         </div>
       </section>
+      </div>
+
+      {showPreview && (
+        <aside
+          className={cn(
+            "flex w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border-2 border-primary/25 bg-card shadow-lg",
+            "max-h-[min(85vh,52rem)] xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:max-h-[calc(100vh-3rem)]",
+            "xl:w-[min(100%,28rem)] 2xl:w-[32rem]",
+          )}
+          aria-label="Aperçu de la convention"
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-primary/15 bg-primary/5 px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Aperçu</p>
+              <h2 className="text-base font-semibold text-foreground">Convention de stage</h2>
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {selectedStudent
+                  ? `${selectedStudent.firstName} ${selectedStudent.lastName}`
+                  : studentId}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground"
+              aria-label="Fermer l'aperçu"
+              onClick={() => setPreviewOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4">
+            <ConventionDocxPreview
+              studentId={studentId}
+              refreshKey={previewKey}
+              layout="sidebar"
+            />
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
