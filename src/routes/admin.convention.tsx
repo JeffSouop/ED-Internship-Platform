@@ -174,7 +174,7 @@ function ConventionStagePage() {
 
       <section
         className={cn(
-          "relative overflow-hidden rounded-2xl border border-primary/20 bg-card p-6 shadow-sm sm:p-8",
+          "relative overflow-visible rounded-2xl border border-primary/20 bg-card p-6 shadow-sm sm:p-8",
           "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-primary",
         )}
       >

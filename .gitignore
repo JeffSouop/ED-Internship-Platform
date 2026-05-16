@@ -29,6 +29,10 @@ convention/.convention-docusign.json
 attestation/*.docx
 attestation/.attestations-index.json
 
+# Ruptures de stage Word générées (dossier rupture/ à la racine)
+rupture/*.docx
+rupture/.ruptures-index.json
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

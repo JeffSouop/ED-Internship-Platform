@@ -53,6 +53,13 @@ import {
 } from "./attestation-generate.js";
 import { listAttestations } from "./attestation-list.js";
 import { resolveAttestationAbsolutePath } from "./attestation-index.js";
+import {
+  RuptureGenerateError,
+  generateRuptureDocx,
+  ruptureExistsForStudent,
+} from "./rupture-generate.js";
+import { listRuptures } from "./rupture-list.js";
+import { resolveRuptureAbsolutePath } from "./rupture-index.js";
 import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
 import path from "node:path";
 
@@ -1343,6 +1350,106 @@ app.post("/api/admin/attestations/generate", requireAdmin, async (req, res) => {
     }
     console.error(e);
     res.status(500).json({ error: "Erreur lors de la génération de l'attestation" });
+  }
+});
+
+// ——— Rupture de stage (Word) ———
+app.get("/api/admin/ruptures", requireAdmin, async (_req, res) => {
+  try {
+    const rows = await listRuptures(pool);
+    res.json({ rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Impossible de charger la liste des ruptures de stage" });
+  }
+});
+
+app.get("/api/admin/ruptures/preview/:studentId", requireAdmin, (req, res) => {
+  const studentId = req.params.studentId?.trim() ?? "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  const resolved = resolveRuptureAbsolutePath(studentId);
+  if (!resolved) {
+    res.status(404).json({ error: "Aucune rupture de stage enregistrée pour cet étudiant." });
+    return;
+  }
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${path.basename(resolved.entry.filename)}"`,
+  );
+  res.sendFile(resolved.absolutePath);
+});
+
+app.get("/api/admin/ruptures/download/:studentId", requireAdmin, (req, res) => {
+  const studentId = req.params.studentId?.trim() ?? "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  const resolved = resolveRuptureAbsolutePath(studentId);
+  if (!resolved) {
+    res.status(404).json({ error: "Aucune rupture de stage enregistrée pour cet étudiant." });
+    return;
+  }
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${path.basename(resolved.entry.filename)}"`,
+  );
+  res.sendFile(resolved.absolutePath);
+});
+
+app.get("/api/admin/ruptures/exists/:studentId", requireAdmin, (req, res) => {
+  const studentId = req.params.studentId?.trim() ?? "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  res.json(ruptureExistsForStudent(studentId));
+});
+
+app.post("/api/admin/ruptures/generate", requireAdmin, async (req, res) => {
+  const studentId =
+    typeof req.body?.studentId === "string"
+      ? req.body.studentId.trim()
+      : typeof req.query.studentId === "string"
+        ? req.query.studentId.trim()
+        : "";
+  const overwrite = req.body?.overwrite === true;
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  try {
+    const result = await generateRuptureDocx(pool, studentId, { overwrite });
+    res.json({
+      ok: true,
+      studentId,
+      filename: result.filename,
+      path: result.relativePath,
+      message: "La rupture de stage a été générée.",
+      replaced: overwrite,
+    });
+  } catch (e) {
+    if (e instanceof RuptureGenerateError) {
+      res.status(e.status).json({
+        error: e.message,
+        code: e.code,
+        existingFilename: e.existingFilename,
+      });
+      return;
+    }
+    console.error(e);
+    res.status(500).json({ error: "Erreur lors de la génération de la rupture de stage" });
   }
 });
 

@@ -11,6 +11,7 @@ import {
   FileText,
   FileCheck,
   Award,
+  FileX,
   ScrollText,
   ClipboardList,
 } from "lucide-react";
@@ -147,6 +148,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
     { to: "/admin/validations", label: "Validations", icon: ClipboardCheck },
     { to: "/admin/convention", label: "Convention de stage", icon: ScrollText },
     { to: "/admin/attestation", label: "Attestation de stage", icon: Award },
+    { to: "/admin/rupture", label: "Rupture de stage", icon: FileX },
     { to: "/admin/feuille-suivi", label: "Feuille de suivi", icon: FileCheck },
     { to: "/admin/convention-tracking", label: "Suivi conventions", icon: ClipboardList },
     { to: "/admin/form-log", label: "Journal formulaires", icon: FileText },

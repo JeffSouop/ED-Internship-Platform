@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Search } from "lucide-react";
 
 import type { Student } from "@/lib/types";
@@ -42,13 +43,33 @@ export function StudentPickerCombobox({
 }: StudentPickerComboboxProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  const updateDropdownPosition = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const gap = 4;
+    const maxHeight = Math.min(280, Math.max(120, window.innerHeight - rect.bottom - gap - 16));
+    setDropdownRect({
+      top: rect.bottom + gap,
+      left: rect.left,
+      width: rect.width,
+      maxHeight,
+    });
+  }, []);
 
   const selected = students.find((s) => s.id === value);
 
   useEffect(() => {
     if (selected && !open) {
-      setQuery(`${studentLabel(selected)} — ${selected.id}`);
+      setQuery(studentLabel(selected));
     } else if (!value && !open) {
       setQuery("");
     }
@@ -70,15 +91,35 @@ export function StudentPickerCombobox({
 
   function pick(student: Student) {
     onValueChange(student.id);
-    setQuery(`${studentLabel(student)} — ${student.id}`);
+    setQuery(studentLabel(student));
     setOpen(false);
   }
 
   useEffect(() => {
+    if (!open) {
+      setDropdownRect(null);
+      return;
+    }
+    updateDropdownPosition();
+    window.addEventListener("resize", updateDropdownPosition);
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateDropdownPosition);
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+    };
+  }, [open, updateDropdownPosition, query]);
+
+  useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
+      const target = e.target as Node;
+      if (wrapRef.current?.contains(target)) return;
+      if (
+        target instanceof Element &&
+        target.closest("[data-student-picker-list]")
+      ) {
+        return;
       }
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -125,37 +166,47 @@ export function StudentPickerCombobox({
         />
       </div>
 
-      {open && !disabled && (
-        <ul
-          className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md"
-          role="listbox"
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-              Aucun étudiant trouvé.
-            </li>
-          ) : (
-            filtered.map((s) => (
-              <li key={s.id} role="option" aria-selected={value === s.id}>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary",
-                    value === s.id && "bg-secondary font-medium",
-                  )}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pick(s)}
-                >
-                  <span>
-                    {s.lastName} {s.firstName}
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">{s.id}</span>
-                </button>
+      {open &&
+        !disabled &&
+        dropdownRect &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ul
+            data-student-picker-list
+            className="z-[200] overflow-y-auto overscroll-contain rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md"
+            style={{
+              position: "fixed",
+              top: dropdownRect.top,
+              left: dropdownRect.left,
+              width: dropdownRect.width,
+              maxHeight: dropdownRect.maxHeight,
+            }}
+            role="listbox"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                Aucun étudiant trouvé.
               </li>
-            ))
-          )}
-        </ul>
-      )}
+            ) : (
+              filtered.map((s) => (
+                <li key={s.id} role="option" aria-selected={value === s.id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary",
+                      value === s.id && "bg-secondary font-medium",
+                    )}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pick(s)}
+                  >
+                    {s.lastName} {s.firstName}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>,
+          document.body,
+        )}
 
       <p className="mt-2 text-xs text-muted-foreground">
         Tapez pour filtrer, ou collez un n° étudiant exact puis Entrée.

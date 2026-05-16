@@ -18,18 +18,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  attestationPreviewUrl,
-  checkAttestationExists,
-  downloadAttestation,
-  generateAttestation,
-  listAttestations,
-} from "@/services/attestations";
+  rupturePreviewUrl,
+  checkRuptureExists,
+  downloadRupture,
+  generateRupture,
+  listRuptures,
+} from "@/services/ruptures";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin/attestation")({
-  component: AttestationStagePage,
+export const Route = createFileRoute("/admin/rupture")({
+  component: RuptureStagePage,
 });
 
 function formatDateTime(iso: string): string {
@@ -44,7 +44,7 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function AttestationStagePage() {
+function RuptureStagePage() {
   const queryClient = useQueryClient();
   const [studentId, setStudentId] = useState("");
   const [overwriteDialogOpen, setOverwriteDialogOpen] = useState(false);
@@ -53,15 +53,15 @@ function AttestationStagePage() {
   const [previewKey, setPreviewKey] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const attestationExistsQ = useQuery({
-    queryKey: ["attestation-exists", studentId],
-    queryFn: () => checkAttestationExists(studentId),
+  const ruptureExistsQ = useQuery({
+    queryKey: ["rupture-exists", studentId],
+    queryFn: () => checkRuptureExists(studentId),
     enabled: !!studentId,
   });
 
-  const attestationsListQ = useQuery({
-    queryKey: ["attestations-list"],
-    queryFn: listAttestations,
+  const rupturesListQ = useQuery({
+    queryKey: ["ruptures-list"],
+    queryFn: listRuptures,
   });
 
   useEffect(() => {
@@ -84,7 +84,7 @@ function AttestationStagePage() {
   }, [studentsQ.data]);
 
   const selectedStudent = students.find((s) => s.id === studentId);
-  const previewRow = attestationsListQ.data?.rows.find((r) => r.studentId === previewStudentId);
+  const previewRow = rupturesListQ.data?.rows.find((r) => r.studentId === previewStudentId);
   const previewStudent =
     students.find((s) => s.id === previewStudentId) ??
     (previewRow
@@ -114,13 +114,13 @@ function AttestationStagePage() {
   };
 
   const generateM = useMutation({
-    mutationFn: (overwrite: boolean) => generateAttestation(studentId, overwrite),
+    mutationFn: (overwrite: boolean) => generateRupture(studentId, overwrite),
     onSuccess: async () => {
       setOverwriteDialogOpen(false);
-      await attestationExistsQ.refetch();
-      void queryClient.invalidateQueries({ queryKey: ["attestations-list"] });
+      await ruptureExistsQ.refetch();
+      void queryClient.invalidateQueries({ queryKey: ["ruptures-list"] });
       openPreview(studentId);
-      toast.success("L'attestation a été générée avec succès.");
+      toast.success("La rupture de stage a été générée avec succès.");
     },
     onError: (err: Error) => {
       toast.error(err.message || "Échec de la génération.");
@@ -131,7 +131,7 @@ function AttestationStagePage() {
     if (!studentId) return;
     setCheckingExists(true);
     try {
-      const { exists } = await checkAttestationExists(studentId);
+      const { exists } = await checkRuptureExists(studentId);
       if (exists) {
         setOverwriteDialogOpen(true);
         return;
@@ -147,7 +147,7 @@ function AttestationStagePage() {
   async function handleDownload(id: string) {
     setDownloadingId(id);
     try {
-      await downloadAttestation(id);
+      await downloadRupture(id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Téléchargement impossible.");
     } finally {
@@ -157,8 +157,8 @@ function AttestationStagePage() {
 
   const generateBusy = checkingExists || generateM.isPending;
   const showPreview = !!previewStudentId;
-  const hasAttestation = Boolean(attestationExistsQ.data?.exists);
-  const listRows = attestationsListQ.data?.rows ?? [];
+  const hasRupture = Boolean(ruptureExistsQ.data?.exists);
+  const listRows = rupturesListQ.data?.rows ?? [];
 
   return (
     <div
@@ -171,11 +171,11 @@ function AttestationStagePage() {
         <header className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Administration</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
-            Attestation de stage
+            Rupture de stage
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Sélectionnez un étudiant pour générer son attestation Word. Les fichiers sont enregistrés
-            dans le dossier <code className="rounded bg-muted px-1">attestation/</code> à la racine du
+            Sélectionnez un étudiant pour générer sa rupture de stage Word. Les fichiers sont enregistrés
+            dans le dossier <code className="rounded bg-muted px-1">rupture/</code> à la racine du
             projet.
           </p>
         </header>
@@ -188,11 +188,11 @@ function AttestationStagePage() {
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
             <div className="min-w-0 flex-1 space-y-3">
-              <Label htmlFor="attestation-student" className="text-sm font-medium text-foreground">
+              <Label htmlFor="rupture-student" className="text-sm font-medium text-foreground">
                 Étudiant
               </Label>
               <StudentPickerCombobox
-                id="attestation-student"
+                id="rupture-student"
                 students={students}
                 value={studentId}
                 onValueChange={setStudentId}
@@ -238,7 +238,7 @@ function AttestationStagePage() {
               <FileText className="h-7 w-7" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Génération de l&apos;attestation</h2>
+              <h2 className="text-lg font-semibold text-foreground">Génération de la rupture de stage</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 {selectedStudent
                   ? `Prêt pour ${selectedStudent.firstName} ${selectedStudent.lastName}.`
@@ -257,14 +257,14 @@ function AttestationStagePage() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Générer l&apos;attestation
+              Générer l&apos;rupture
             </Button>
             <AlertDialog open={overwriteDialogOpen} onOpenChange={setOverwriteDialogOpen}>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Attestation déjà générée</AlertDialogTitle>
+                  <AlertDialogTitle>Rupture de stage déjà générée</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Une attestation existe déjà pour cet étudiant. La version précédente sera
+                    Une rupture de stage existe déjà pour cet étudiant. La version précédente sera
                     remplacée si vous continuez.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -283,7 +283,7 @@ function AttestationStagePage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            {hasAttestation && previewStudentId !== studentId && (
+            {hasRupture && previewStudentId !== studentId && (
               <Button
                 type="button"
                 variant="outline"
@@ -291,7 +291,7 @@ function AttestationStagePage() {
                 onClick={() => openPreview(studentId)}
               >
                 <Eye className="h-4 w-4" />
-                Voir l&apos;attestation
+                Voir la rupture de stage
               </Button>
             )}
           </div>
@@ -299,9 +299,9 @@ function AttestationStagePage() {
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Attestations générées</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Ruptures de stage générées</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {listRows.length} attestation{listRows.length !== 1 ? "s" : ""} enregistrée
+              {listRows.length} document{listRows.length !== 1 ? "s" : ""} enregistré
               {listRows.length !== 1 ? "s" : ""}.
             </p>
           </div>
@@ -316,17 +316,17 @@ function AttestationStagePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {attestationsListQ.isLoading && (
+                {rupturesListQ.isLoading && (
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
                       Chargement…
                     </td>
                   </tr>
                 )}
-                {!attestationsListQ.isLoading && listRows.length === 0 && (
+                {!rupturesListQ.isLoading && listRows.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
-                      Aucune attestation générée pour le moment.
+                      Aucune rupture de stage générée pour le moment.
                     </td>
                   </tr>
                 )}
@@ -384,12 +384,12 @@ function AttestationStagePage() {
             "max-h-[min(85vh,52rem)] xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:max-h-[calc(100vh-3rem)]",
             "xl:w-[min(100%,28rem)] 2xl:w-[32rem]",
           )}
-          aria-label="Aperçu de l'attestation"
+          aria-label="Aperçu de la rupture de stage"
         >
           <div className="flex items-start justify-between gap-3 border-b border-primary/15 bg-primary/5 px-4 py-3 sm:px-5">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">Aperçu</p>
-              <h2 className="text-base font-semibold text-foreground">Attestation de stage</h2>
+              <h2 className="text-base font-semibold text-foreground">Rupture de stage</h2>
               <p className="mt-0.5 truncate text-sm text-muted-foreground">
                 {previewStudent
                   ? `${previewStudent.firstName} ${previewStudent.lastName}`.trim() ||
@@ -430,9 +430,9 @@ function AttestationStagePage() {
               studentId={previewStudentId}
               refreshKey={previewKey}
               layout="sidebar"
-              previewPath={attestationPreviewUrl}
-              loadingLabel="Chargement de l'attestation…"
-              errorFallback="Impossible d'afficher l'attestation."
+              previewPath={rupturePreviewUrl}
+              loadingLabel="Chargement de la rupture de stage…"
+              errorFallback="Impossible d'afficher la rupture de stage."
             />
           </div>
         </aside>

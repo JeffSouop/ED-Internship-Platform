@@ -20,6 +20,7 @@ import { Route as StudentTokenRouteImport } from './routes/student.$token'
 import { Route as CompanyTokenRouteImport } from './routes/company.$token'
 import { Route as AdminValidationsRouteImport } from './routes/admin.validations'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
+import { Route as AdminRuptureRouteImport } from './routes/admin.rupture'
 import { Route as AdminMergedRouteImport } from './routes/admin.merged'
 import { Route as AdminLinksRouteImport } from './routes/admin.links'
 import { Route as AdminFormLogRouteImport } from './routes/admin.form-log'
@@ -85,6 +86,11 @@ const AdminValidationsRoute = AdminValidationsRouteImport.update({
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
   id: '/students',
   path: '/students',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRuptureRoute = AdminRuptureRouteImport.update({
+  id: '/rupture',
+  path: '/rupture',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminMergedRoute = AdminMergedRouteImport.update({
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
+  '/admin/rupture': typeof AdminRuptureRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/validations': typeof AdminValidationsRouteWithChildren
   '/company/$token': typeof CompanyTokenRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
+  '/admin/rupture': typeof AdminRuptureRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/validations': typeof AdminValidationsRouteWithChildren
   '/company/$token': typeof CompanyTokenRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
+  '/admin/rupture': typeof AdminRuptureRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/validations': typeof AdminValidationsRouteWithChildren
   '/company/$token': typeof CompanyTokenRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
+    | '/admin/rupture'
     | '/admin/students'
     | '/admin/validations'
     | '/company/$token'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
+    | '/admin/rupture'
     | '/admin/students'
     | '/admin/validations'
     | '/company/$token'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
+    | '/admin/rupture'
     | '/admin/students'
     | '/admin/validations'
     | '/company/$token'
@@ -371,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/students'
       fullPath: '/admin/students'
       preLoaderRoute: typeof AdminStudentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/rupture': {
+      id: '/admin/rupture'
+      path: '/rupture'
+      fullPath: '/admin/rupture'
+      preLoaderRoute: typeof AdminRuptureRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/merged': {
@@ -487,6 +506,7 @@ interface AdminRouteChildren {
   AdminFormLogRoute: typeof AdminFormLogRoute
   AdminLinksRoute: typeof AdminLinksRoute
   AdminMergedRoute: typeof AdminMergedRoute
+  AdminRuptureRoute: typeof AdminRuptureRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminValidationsRoute: typeof AdminValidationsRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
@@ -501,6 +521,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFormLogRoute: AdminFormLogRoute,
   AdminLinksRoute: AdminLinksRoute,
   AdminMergedRoute: AdminMergedRoute,
+  AdminRuptureRoute: AdminRuptureRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminValidationsRoute: AdminValidationsRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
