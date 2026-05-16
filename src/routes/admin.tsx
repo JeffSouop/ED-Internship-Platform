@@ -9,6 +9,7 @@ import {
   LinkIcon,
   LogOut,
   FileText,
+  FileCheck,
   ScrollText,
   ClipboardList,
 } from "lucide-react";
@@ -144,6 +145,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
     { to: "/admin", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
     { to: "/admin/validations", label: "Validations", icon: ClipboardCheck },
     { to: "/admin/convention", label: "Convention de stage", icon: ScrollText },
+    { to: "/admin/feuille-suivi", label: "Feuille de suivi", icon: FileCheck },
     { to: "/admin/convention-tracking", label: "Suivi conventions", icon: ClipboardList },
     { to: "/admin/form-log", label: "Journal formulaires", icon: FileText },
     { to: "/admin/students", label: "Étudiants", icon: GraduationCap },

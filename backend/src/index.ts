@@ -45,6 +45,7 @@ import {
   sendConventionToDocuSign,
 } from "./docusign.js";
 import { listConventionTracking } from "./convention-tracking.js";
+import { listConventionGenerationStatus } from "./convention-generation-status.js";
 import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
 import path from "node:path";
 
@@ -1190,6 +1191,18 @@ app.get("/api/admin/conventions/tracking", requireAdmin, async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Impossible de charger le suivi des conventions" });
+  }
+});
+
+app.get("/api/admin/conventions/generation-status", requireAdmin, async (_req, res) => {
+  try {
+    const data = await listConventionGenerationStatus(pool);
+    res.json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({
+      error: "Impossible de charger le suivi de génération des conventions",
+    });
   }
 });
 

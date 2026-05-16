@@ -96,6 +96,7 @@ function ConventionStagePage() {
     onSuccess: async () => {
       setOverwriteDialogOpen(false);
       await conventionExistsQ.refetch();
+      void queryClient.invalidateQueries({ queryKey: ["feuille-suivi"] });
       openPreview();
       toast.success("La convention a été générée avec succès.");
     },
