@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "node --import tsx src/index.ts",
     "build": "tsc",
-    "seed:admin": "tsx scripts/seed-admin-user.ts"
+    "seed:admin": "tsx scripts/seed-admin-user.ts",
+    "import:companies": "tsx scripts/import-companies-xlsx.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -18,7 +19,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
-    "pizzip": "^3.2.0"
+    "pizzip": "^3.2.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

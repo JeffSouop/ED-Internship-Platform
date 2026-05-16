@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/companies/")({
   component: CompaniesPage,
@@ -26,20 +33,37 @@ function CompaniesPage() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["companies"], queryFn: listCompanies });
   const [search, setSearch] = useState("");
+  const [country, setCountry] = useState<string>("all");
+  const [sector, setSector] = useState<string>("all");
   const [detailCompanyId, setDetailCompanyId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
+  const countryOptions = useMemo(() => {
+    const values = new Set((q.data ?? []).map((c) => c.country).filter(Boolean));
+    return Array.from(values).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [q.data]);
+
+  const sectorOptions = useMemo(() => {
+    const values = new Set((q.data ?? []).map((c) => c.sector).filter(Boolean));
+    return Array.from(values).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [q.data]);
+
   const rows = useMemo(() => {
-    const list = q.data ?? [];
-    if (!search.trim()) return list;
-    const s = search.toLowerCase();
+    let list = q.data ?? [];
+    if (country !== "all") {
+      list = list.filter((c) => c.country === country);
+    }
+    if (sector !== "all") {
+      list = list.filter((c) => c.sector === sector);
+    }
+    const s = search.trim().toLowerCase();
+    if (!s) return list;
     return list.filter((c) => {
       const name = (c.name ?? "").toLowerCase();
-      const country = (c.country ?? "").toLowerCase();
-      const sector = (c.sector ?? "").toLowerCase();
-      return name.includes(s) || country.includes(s) || sector.includes(s);
+      const trade = (c.tradeName ?? "").toLowerCase();
+      return name.includes(s) || trade.includes(s);
     });
-  }, [q.data, search]);
+  }, [q.data, search, country, sector]);
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteCompany(id),
@@ -105,12 +129,44 @@ function CompaniesPage() {
             Toutes les entreprises présentes dans votre base. Ouvrez une fiche pour modifier ou supprimer.
           </p>
         </div>
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher…"
-          className="w-64"
-        />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-44">
+            <Select value={country} onValueChange={setCountry}>
+              <SelectTrigger aria-label="Filtrer par pays">
+                <SelectValue placeholder="Pays" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les pays</SelectItem>
+                {countryOptions.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[12rem] max-w-xs flex-1 sm:max-w-[16rem]">
+            <Select value={sector} onValueChange={setSector}>
+              <SelectTrigger aria-label="Filtrer par secteur">
+                <SelectValue placeholder="Secteur" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les secteurs</SelectItem>
+                {sectorOptions.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher par nom…"
+            className="w-64"
+          />
+        </div>
       </header>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
