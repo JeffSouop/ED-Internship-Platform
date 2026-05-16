@@ -1175,11 +1175,15 @@ app.post("/api/admin/conventions/docusign/send", requireAdmin, async (req, res) 
     return;
   }
   try {
-    const result = await sendConventionToDocuSign(studentId);
+    const result = await sendConventionToDocuSign(pool, studentId);
     res.json(result);
   } catch (e) {
     if (e instanceof DocuSignError) {
-      res.status(e.status).json({ error: e.message, code: e.code });
+      res.status(e.status).json({
+        error: e.message,
+        code: e.code,
+        consentUrl: e.consentUrl,
+      });
       return;
     }
     console.error(e);

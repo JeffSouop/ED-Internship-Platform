@@ -125,15 +125,21 @@ function ConventionStagePage() {
     onSuccess: (data) => {
       toast.success(data.message || "Demande d’envoi DocuSign enregistrée.");
     },
-    onError: (err: Error & { code?: string }) => {
+    onError: (err: Error & { code?: string; consentUrl?: string }) => {
       if (err.code === "DOCUSIGN_NOT_CONFIGURED") {
         toast.info(
-          "DocuSign sera connecté prochainement. Les paramètres serveur (clés API) restent à configurer.",
+          "DocuSign n’est pas configuré. Vérifiez backend/.env et le chemin vers private.key.",
         );
         return;
       }
-      if (err.code === "DOCUSIGN_NOT_IMPLEMENTED") {
-        toast.info(err.message);
+      if (err.code === "DOCUSIGN_CONSENT_REQUIRED" && err.consentUrl) {
+        toast.error(err.message, {
+          description: "Ouvrez le lien de consentement DocuSign (première connexion).",
+          action: {
+            label: "Autoriser DocuSign",
+            onClick: () => window.open(err.consentUrl, "_blank", "noopener,noreferrer"),
+          },
+        });
         return;
       }
       toast.error(err.message || "Échec de l’envoi DocuSign.");

@@ -63,10 +63,14 @@ export async function sendConventionToDocuSign(
     body: JSON.stringify({ studentId }),
   });
   const body = (await res.json().catch(() => ({}))) as DocuSignSendResponse &
-    ConventionApiErrorBody;
+    ConventionApiErrorBody & { consentUrl?: string };
   if (!res.ok) {
-    const err = new Error(body.error || res.statusText) as Error & { code?: string };
+    const err = new Error(body.error || res.statusText) as Error & {
+      code?: string;
+      consentUrl?: string;
+    };
     err.code = body.code;
+    err.consentUrl = body.consentUrl;
     throw err;
   }
   return body as DocuSignSendResponse;
