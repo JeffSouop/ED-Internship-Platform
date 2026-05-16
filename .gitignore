@@ -20,6 +20,7 @@ backend/.env
 
 # Conventions Word générées (dossier convention/ à la racine)
 convention/*.docx
+convention/.conventions-index.json
 
 # Wrangler / Cloudflare
 .wrangler/

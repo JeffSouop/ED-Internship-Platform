@@ -13,6 +13,11 @@ import {
   resolveConventionOutputDir,
   resolveConventionTemplatePath,
 } from "./convention-data.js";
+import {
+  deleteConventionFileForStudent,
+  getConventionForStudent,
+  setConventionForStudent,
+} from "./convention-index.js";
 
 export type ConventionGenerateResult = {
   filename: string;
@@ -22,20 +27,48 @@ export type ConventionGenerateResult = {
   relativePath: string;
 };
 
+export const CONVENTION_ALREADY_EXISTS_CODE = "CONVENTION_ALREADY_EXISTS";
+
 export class ConventionGenerateError extends Error {
   constructor(
     message: string,
     readonly status: number = 400,
+    readonly code?: string,
+    readonly existingFilename?: string,
   ) {
     super(message);
     this.name = "ConventionGenerateError";
   }
 }
 
+export function conventionExistsForStudent(studentId: string): {
+  exists: boolean;
+  filename?: string;
+} {
+  const entry = getConventionForStudent(studentId.trim());
+  if (!entry) return { exists: false };
+  return { exists: true, filename: entry.filename };
+}
+
+export type GenerateConventionOptions = {
+  overwrite?: boolean;
+};
+
 export async function generateConventionDocx(
   pool: pg.Pool,
   studentId: string,
+  options: GenerateConventionOptions = {},
 ): Promise<ConventionGenerateResult> {
+  const id = studentId.trim();
+  const existing = getConventionForStudent(id);
+  if (existing && !options.overwrite) {
+    throw new ConventionGenerateError(
+      "Une convention a déjà été générée pour cet étudiant.",
+      409,
+      CONVENTION_ALREADY_EXISTS_CODE,
+      existing.filename,
+    );
+  }
   const templatePath = resolveConventionTemplatePath();
   if (!fs.existsSync(templatePath)) {
     throw new ConventionGenerateError(
@@ -89,24 +122,22 @@ export async function generateConventionDocx(
     data.Nom_entreprise,
   );
 
+  if (existing && options.overwrite) {
+    deleteConventionFileForStudent(id);
+  }
+
   const outputDir = resolveConventionOutputDir();
   fs.mkdirSync(outputDir, { recursive: true });
 
-  let absolutePath = path.join(outputDir, filename);
-  if (fs.existsSync(absolutePath)) {
-    const stem = filename.replace(/\.docx$/i, "");
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
-    filename = `${stem}-${stamp}.docx`;
-    absolutePath = path.join(outputDir, filename);
-  }
-
+  const absolutePath = path.join(outputDir, filename);
   fs.writeFileSync(absolutePath, buffer);
 
-  const relativePath = path.relative(PROJECT_ROOT, absolutePath);
+  const relativePath = path.relative(PROJECT_ROOT, absolutePath).split(path.sep).join("/");
+  setConventionForStudent(id, relativePath, filename);
 
   return {
     filename,
     absolutePath,
-    relativePath: relativePath.split(path.sep).join("/"),
+    relativePath,
   };
 }

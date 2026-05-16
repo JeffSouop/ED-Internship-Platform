@@ -1,13 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText, Loader2, Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
-import { generateConvention } from "@/services/conventions";
+import {
+  checkConventionExists,
+  generateConvention,
+} from "@/services/conventions";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
 import { StudentPickerCombobox } from "@/components/StudentPickerCombobox";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -18,6 +30,12 @@ export const Route = createFileRoute("/admin/convention")({
 
 function ConventionStagePage() {
   const [studentId, setStudentId] = useState<string>("");
+  const [overwriteDialogOpen, setOverwriteDialogOpen] = useState(false);
+  const [checkingExists, setCheckingExists] = useState(false);
+
+  useEffect(() => {
+    setOverwriteDialogOpen(false);
+  }, [studentId]);
 
   const studentsQ = useQuery({ queryKey: ["students"], queryFn: listStudents });
   const submissionQ = useQuery({
@@ -51,16 +69,34 @@ function ConventionStagePage() {
     weeksCount !== null ? `${weeksCount} semaine${weeksCount > 1 ? "s" : ""}` : "—";
 
   const generateM = useMutation({
-    mutationFn: () => generateConvention(studentId),
-    onSuccess: (data) => {
-      toast.success("La convention a été générée.", {
-        description: `Enregistrée dans ${data.path}`,
-      });
+    mutationFn: (overwrite: boolean) => generateConvention(studentId, overwrite),
+    onSuccess: () => {
+      setOverwriteDialogOpen(false);
+      toast.success("La convention a été générée avec succès.");
     },
     onError: (err: Error) => {
       toast.error(err.message || "Échec de la génération.");
     },
   });
+
+  async function handleGenerateClick() {
+    if (!studentId) return;
+    setCheckingExists(true);
+    try {
+      const { exists } = await checkConventionExists(studentId);
+      if (exists) {
+        setOverwriteDialogOpen(true);
+        return;
+      }
+      generateM.mutate(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de vérifier l’existant.");
+    } finally {
+      setCheckingExists(false);
+    }
+  }
+
+  const generateBusy = checkingExists || generateM.isPending;
 
   return (
     <div className="space-y-8">
@@ -150,16 +186,41 @@ function ConventionStagePage() {
             type="button"
             className="gap-2"
             size="lg"
-            disabled={!studentId || generateM.isPending}
-            onClick={() => generateM.mutate()}
+            disabled={!studentId || generateBusy}
+            onClick={() => void handleGenerateClick()}
           >
-            {generateM.isPending ? (
+            {generateBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
             Générer la convention
           </Button>
+
+          <AlertDialog open={overwriteDialogOpen} onOpenChange={setOverwriteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Convention déjà générée</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Une convention a déjà été générée pour cet étudiant. Si vous continuez, la version
+                  précédente sera remplacée par la nouvelle. Souhaitez-vous continuer ?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={generateM.isPending}>Annuler</AlertDialogCancel>
+                <Button
+                  type="button"
+                  disabled={generateM.isPending}
+                  onClick={() => generateM.mutate(true)}
+                >
+                  {generateM.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Continuer et remplacer
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <p className="text-xs text-muted-foreground">
             Les fichiers sont enregistrés dans le dossier <code className="rounded bg-muted px-1">convention/</code> à
             la racine du projet.

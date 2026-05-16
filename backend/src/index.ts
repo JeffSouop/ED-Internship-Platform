@@ -33,7 +33,11 @@ import {
   programmeLabelToCode,
 } from "./mappers.js";
 import { insertDeclaredInternWithFullIntake } from "./partner-snapshot.js";
-import { ConventionGenerateError, generateConventionDocx } from "./convention-generate.js";
+import {
+  ConventionGenerateError,
+  conventionExistsForStudent,
+  generateConventionDocx,
+} from "./convention-generate.js";
 
 const { Pool } = pg;
 
@@ -1130,6 +1134,15 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
 });
 
 // ——— Convention de stage (Word) ———
+app.get("/api/admin/conventions/exists/:studentId", requireAdmin, (req, res) => {
+  const studentId = req.params.studentId?.trim() ?? "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  res.json(conventionExistsForStudent(studentId));
+});
+
 app.post("/api/admin/conventions/generate", requireAdmin, async (req, res) => {
   const studentId =
     typeof req.body?.studentId === "string"
@@ -1137,22 +1150,28 @@ app.post("/api/admin/conventions/generate", requireAdmin, async (req, res) => {
       : typeof req.query.studentId === "string"
         ? req.query.studentId.trim()
         : "";
+  const overwrite = req.body?.overwrite === true;
   if (!studentId) {
     res.status(400).json({ error: "studentId requis" });
     return;
   }
   try {
-    const result = await generateConventionDocx(pool, studentId);
+    const result = await generateConventionDocx(pool, studentId, { overwrite });
     res.json({
       ok: true,
       studentId,
       filename: result.filename,
       path: result.relativePath,
       message: "La convention a été générée.",
+      replaced: overwrite,
     });
   } catch (e) {
     if (e instanceof ConventionGenerateError) {
-      res.status(e.status).json({ error: e.message });
+      res.status(e.status).json({
+        error: e.message,
+        code: e.code,
+        existingFilename: e.existingFilename,
+      });
       return;
     }
     console.error(e);
