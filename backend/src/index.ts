@@ -33,6 +33,7 @@ import {
   programmeLabelToCode,
 } from "./mappers.js";
 import { insertDeclaredInternWithFullIntake } from "./partner-snapshot.js";
+import { ConventionGenerateError, generateConventionDocx } from "./convention-generate.js";
 
 const { Pool } = pg;
 
@@ -1126,6 +1127,36 @@ app.get("/api/merged", requireAdmin, async (_req, res) => {
   }
 
   res.json(merged);
+});
+
+// ——— Convention de stage (Word) ———
+app.post("/api/admin/conventions/generate", requireAdmin, async (req, res) => {
+  const studentId =
+    typeof req.body?.studentId === "string"
+      ? req.body.studentId.trim()
+      : typeof req.query.studentId === "string"
+        ? req.query.studentId.trim()
+        : "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  try {
+    const { buffer, filename } = await generateConventionDocx(pool, studentId);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (e) {
+    if (e instanceof ConventionGenerateError) {
+      res.status(e.status).json({ error: e.message });
+      return;
+    }
+    console.error(e);
+    res.status(500).json({ error: "Erreur lors de la génération de la convention" });
+  }
 });
 
 app.listen(PORT, () => {

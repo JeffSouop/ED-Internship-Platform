@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { FileText, Sparkles, UserRound } from "lucide-react";
+import { FileText, Loader2, Sparkles, UserRound } from "lucide-react";
+import { toast } from "sonner";
 
+import { downloadConvention } from "@/services/conventions";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
 import { StudentPickerCombobox } from "@/components/StudentPickerCombobox";
@@ -47,6 +49,16 @@ function ConventionStagePage() {
 
   const weeksDisplay =
     weeksCount !== null ? `${weeksCount} semaine${weeksCount > 1 ? "s" : ""}` : "—";
+
+  const generateM = useMutation({
+    mutationFn: () => downloadConvention(studentId),
+    onSuccess: () => {
+      toast.success("Convention téléchargée.");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Échec de la génération.");
+    },
+  });
 
   return (
     <div className="space-y-8">
@@ -128,15 +140,27 @@ function ConventionStagePage() {
             <h2 className="text-lg font-semibold text-foreground">Génération de la convention</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {selectedStudent
-                ? `Prêt pour ${selectedStudent.firstName} ${selectedStudent.lastName} — l’export PDF / document sera disponible ici.`
+                ? `Prêt pour ${selectedStudent.firstName} ${selectedStudent.lastName} — fusion du modèle Word avec les données plateforme.`
                 : "Choisissez d’abord un étudiant."}
             </p>
           </div>
-          <Button type="button" disabled className="gap-2" size="lg">
-            <Sparkles className="h-4 w-4" />
+          <Button
+            type="button"
+            className="gap-2"
+            size="lg"
+            disabled={!studentId || generateM.isPending}
+            onClick={() => generateM.mutate()}
+          >
+            {generateM.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             Générer la convention
           </Button>
-          <p className="text-xs text-muted-foreground">Fonctionnalité à brancher sur le moteur de documents.</p>
+          <p className="text-xs text-muted-foreground">
+            Modèle Modele2025ConventiondestageFPADv0.11.docx — téléchargement .docx.
+          </p>
         </div>
       </section>
     </div>
