@@ -5,6 +5,7 @@ import {
   loadConventionSourceRow,
 } from "./convention-data.js";
 import { resolveConventionAbsolutePath } from "./convention-index.js";
+import { saveDocuSignSendRecord } from "./convention-tracking.js";
 import {
   createDocuSignApiClient,
   sendEnvelopeWithCompositeTemplate,
@@ -66,7 +67,8 @@ export function buildDocuSignEmailSubject(prenom: string, nom: string): string {
 
 function buildSignersFromRow(row: Record<string, unknown>): {
   student: DocuSignSigner;
-  company: DocuSignSigner;
+  companySigner: DocuSignSigner;
+  companyLegalName: string;
   emailSubject: string;
 } {
   const data = buildConventionTemplateData(row);
@@ -82,10 +84,11 @@ function buildSignersFromRow(row: Record<string, unknown>): {
     );
   }
 
-  const companyName =
+  const companyLegalName = data.Nom_entreprise.trim() || "—";
+  const companySignerName =
     data.Representee_par.trim() ||
     data.Nom_tuteur.trim() ||
-    data.Nom_entreprise.trim() ||
+    companyLegalName ||
     "Représentant entreprise";
   const companyEmail =
     data.Courriel_entreprise.trim() || data.Mail_tuteur.trim();
@@ -98,7 +101,8 @@ function buildSignersFromRow(row: Record<string, unknown>): {
 
   return {
     student: { name: studentName, email: studentEmail },
-    company: { name: companyName, email: companyEmail },
+    companySigner: { name: companySignerName, email: companyEmail },
+    companyLegalName,
     emailSubject,
   };
 }
@@ -157,7 +161,8 @@ export async function sendConventionToDocuSign(
     throw new DocuSignError("Données étudiant introuvables.", 404);
   }
 
-  const { student, company, emailSubject } = buildSignersFromRow(row);
+  const { student, companySigner, companyLegalName, emailSubject } =
+    buildSignersFromRow(row);
 
   try {
     const apiClient = await createDocuSignApiClient(config);
@@ -170,7 +175,7 @@ export async function sendConventionToDocuSign(
         resolved.absolutePath,
         resolved.entry.filename,
         student,
-        company,
+        companySigner,
         emailSubject,
       );
     } else {
@@ -180,7 +185,7 @@ export async function sendConventionToDocuSign(
         resolved.absolutePath,
         resolved.entry.filename,
         student,
-        company,
+        companySigner,
         emailSubject,
       );
     }
@@ -188,6 +193,15 @@ export async function sendConventionToDocuSign(
     if (!envelopeId) {
       throw new DocuSignError("DocuSign n’a pas renvoyé d’identifiant d’enveloppe.", 502);
     }
+
+    saveDocuSignSendRecord(
+      id,
+      envelopeId,
+      emailSubject,
+      student,
+      companySigner,
+      companyLegalName,
+    );
 
     return {
       ok: true,

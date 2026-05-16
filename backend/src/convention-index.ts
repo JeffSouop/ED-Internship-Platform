@@ -82,3 +82,17 @@ export function resolveConventionAbsolutePath(
   if (!entry) return undefined;
   return { absolutePath: path.join(PROJECT_ROOT, entry.relativePath), entry };
 }
+
+export function listConventionIndexEntries(): Array<{
+  studentId: string;
+  entry: ConventionIndexEntry;
+}> {
+  const index = readIndex();
+  return Object.entries(index)
+    .map(([studentId, entry]) => {
+      const abs = path.join(PROJECT_ROOT, entry.relativePath);
+      if (!fs.existsSync(abs)) return null;
+      return { studentId, entry };
+    })
+    .filter((row): row is { studentId: string; entry: ConventionIndexEntry } => row !== null);
+}

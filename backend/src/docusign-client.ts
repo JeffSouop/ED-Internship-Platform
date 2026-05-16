@@ -150,6 +150,56 @@ export async function sendEnvelopeWithCompositeTemplate(
   return result.envelopeId ?? "";
 }
 
+export type EnvelopeSignatureState = {
+  envelopeStatus: string;
+  signers: Array<{
+    roleName: string;
+    name: string;
+    email: string;
+    status: string;
+  }>;
+};
+
+export async function fetchEnvelopeSignatureState(
+  apiClient: DocuSignApiClient,
+  accountId: string,
+  envelopeId: string,
+  roleStudent: string,
+  roleCompany: string,
+): Promise<EnvelopeSignatureState> {
+  const envelopesApi = new docusign.EnvelopesApi(apiClient);
+  const envelope = await envelopesApi.getEnvelope(accountId, envelopeId);
+  const recipients = await envelopesApi.listRecipients(accountId, envelopeId);
+
+  const roleByRecipientId = new Map<string, string>();
+  for (const signer of recipients.signers ?? []) {
+    const recipientId = String(signer.recipientId ?? "");
+    const roleName = String(signer.roleName ?? "");
+    if (recipientId && roleName) {
+      roleByRecipientId.set(recipientId, roleName);
+    }
+  }
+
+  const signers = (recipients.signers ?? []).map((signer) => {
+    const recipientId = String(signer.recipientId ?? "");
+    const roleName =
+      String(signer.roleName ?? "") ||
+      roleByRecipientId.get(recipientId) ||
+      (recipientId === "1" ? roleStudent : recipientId === "2" ? roleCompany : "Signataire");
+    return {
+      roleName,
+      name: String(signer.name ?? ""),
+      email: String(signer.email ?? ""),
+      status: String(signer.status ?? "sent"),
+    };
+  });
+
+  return {
+    envelopeStatus: String(envelope.status ?? "sent"),
+    signers,
+  };
+}
+
 /** Secours : positions de signature codées en dur (sans modèle DocuSign). */
 export async function sendEnvelopeWithDocument(
   apiClient: DocuSignApiClient,

@@ -25,6 +25,22 @@ declare module "docusign-esign" {
         accountId: string,
         opts: { envelopeDefinition: unknown },
       ): Promise<{ envelopeId?: string }>;
+      getEnvelope(
+        accountId: string,
+        envelopeId: string,
+      ): Promise<{ status?: string }>;
+      listRecipients(
+        accountId: string,
+        envelopeId: string,
+      ): Promise<{
+        signers?: Array<{
+          recipientId?: string;
+          roleName?: string;
+          name?: string;
+          email?: string;
+          status?: string;
+        }>;
+      }>;
     };
     TemplatesApi: new (apiClient: InstanceType<DocusignSdk["ApiClient"]>) => {
       listDocuments(

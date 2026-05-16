@@ -23,6 +23,7 @@ import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminMergedRouteImport } from './routes/admin.merged'
 import { Route as AdminLinksRouteImport } from './routes/admin.links'
 import { Route as AdminFormLogRouteImport } from './routes/admin.form-log'
+import { Route as AdminConventionTrackingRouteImport } from './routes/admin.convention-tracking'
 import { Route as AdminConventionRouteImport } from './routes/admin.convention'
 import { Route as AdminCompaniesRouteImport } from './routes/admin.companies'
 import { Route as AdminCompaniesIndexRouteImport } from './routes/admin.companies.index'
@@ -99,6 +100,11 @@ const AdminFormLogRoute = AdminFormLogRouteImport.update({
   path: '/form-log',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminConventionTrackingRoute = AdminConventionTrackingRouteImport.update({
+  id: '/convention-tracking',
+  path: '/convention-tracking',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminConventionRoute = AdminConventionRouteImport.update({
   id: '/convention',
   path: '/convention',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/company': typeof CompanyRouteWithChildren
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
+  '/admin/convention-tracking': typeof AdminConventionTrackingRoute
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/convention': typeof AdminConventionRoute
+  '/admin/convention-tracking': typeof AdminConventionTrackingRoute
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/company': typeof CompanyRouteWithChildren
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
+  '/admin/convention-tracking': typeof AdminConventionTrackingRoute
   '/admin/form-log': typeof AdminFormLogRoute
   '/admin/links': typeof AdminLinksRoute
   '/admin/merged': typeof AdminMergedRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/company'
     | '/admin/companies'
     | '/admin/convention'
+    | '/admin/convention-tracking'
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin/convention'
+    | '/admin/convention-tracking'
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/company'
     | '/admin/companies'
     | '/admin/convention'
+    | '/admin/convention-tracking'
     | '/admin/form-log'
     | '/admin/links'
     | '/admin/merged'
@@ -358,6 +370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFormLogRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/convention-tracking': {
+      id: '/admin/convention-tracking'
+      path: '/convention-tracking'
+      fullPath: '/admin/convention-tracking'
+      preLoaderRoute: typeof AdminConventionTrackingRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/convention': {
       id: '/admin/convention'
       path: '/convention'
@@ -424,6 +443,7 @@ const AdminValidationsRouteWithChildren =
 interface AdminRouteChildren {
   AdminCompaniesRoute: typeof AdminCompaniesRouteWithChildren
   AdminConventionRoute: typeof AdminConventionRoute
+  AdminConventionTrackingRoute: typeof AdminConventionTrackingRoute
   AdminFormLogRoute: typeof AdminFormLogRoute
   AdminLinksRoute: typeof AdminLinksRoute
   AdminMergedRoute: typeof AdminMergedRoute
@@ -435,6 +455,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCompaniesRoute: AdminCompaniesRouteWithChildren,
   AdminConventionRoute: AdminConventionRoute,
+  AdminConventionTrackingRoute: AdminConventionTrackingRoute,
   AdminFormLogRoute: AdminFormLogRoute,
   AdminLinksRoute: AdminLinksRoute,
   AdminMergedRoute: AdminMergedRoute,

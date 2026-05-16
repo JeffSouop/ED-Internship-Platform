@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Eye, FilePenLine, FileText, Loader2, Sparkles, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ export const Route = createFileRoute("/admin/convention")({
 });
 
 function ConventionStagePage() {
+  const queryClient = useQueryClient();
   const [studentId, setStudentId] = useState<string>("");
   const [overwriteDialogOpen, setOverwriteDialogOpen] = useState(false);
   const [checkingExists, setCheckingExists] = useState(false);
@@ -123,6 +124,7 @@ function ConventionStagePage() {
   const docusignM = useMutation({
     mutationFn: () => sendConventionToDocuSign(studentId),
     onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["convention-tracking"] });
       toast.success(data.message || "Demande d’envoi DocuSign enregistrée.");
     },
     onError: (err: Error & { code?: string; consentUrl?: string }) => {

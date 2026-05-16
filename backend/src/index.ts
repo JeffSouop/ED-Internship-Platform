@@ -44,6 +44,7 @@ import {
   getDocuSignConfigStatus,
   sendConventionToDocuSign,
 } from "./docusign.js";
+import { listConventionTracking } from "./convention-tracking.js";
 import path from "node:path";
 
 const { Pool } = pg;
@@ -1165,6 +1166,20 @@ app.get("/api/admin/conventions/preview/:studentId", requireAdmin, (req, res) =>
 
 app.get("/api/admin/conventions/docusign/status", requireAdmin, (_req, res) => {
   res.json(getDocuSignConfigStatus());
+});
+
+app.get("/api/admin/conventions/tracking", requireAdmin, async (req, res) => {
+  const skipRefresh =
+    req.query.refresh === "false" || req.query.skipRefresh === "1";
+  try {
+    const data = await listConventionTracking(pool, {
+      refresh: skipRefresh ? false : undefined,
+    });
+    res.json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Impossible de charger le suivi des conventions" });
+  }
 });
 
 app.post("/api/admin/conventions/docusign/send", requireAdmin, async (req, res) => {
