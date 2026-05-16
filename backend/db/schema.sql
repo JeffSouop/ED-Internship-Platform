@@ -222,6 +222,8 @@ CREATE TABLE company (
     city         TEXT,
     postal_code  TEXT,
     website      TEXT,
+    latitude     DOUBLE PRECISION,
+    longitude    DOUBLE PRECISION,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (name, country)

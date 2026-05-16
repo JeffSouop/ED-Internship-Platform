@@ -107,7 +107,14 @@ function Dashboard() {
                 </div>
               }
             >
-              <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col gap-1">
+                {companyMap.data.stats.notGeocoded > 0 && (
+                  <p className="shrink-0 px-1 text-xs text-muted-foreground">
+                    {companyMap.data.stats.onMap} entreprise{companyMap.data.stats.onMap !== 1 ? "s" : ""}{" "}
+                    sur la carte — {companyMap.data.stats.notGeocoded} sans position (
+                    <code className="text-[10px]">cd backend && npm run geocode:companies</code>).
+                  </p>
+                )}
                 <CompaniesMap data={companyMap.data} className="min-h-0 flex-1" />
               </div>
             </Suspense>

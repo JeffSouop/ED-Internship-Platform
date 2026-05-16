@@ -937,7 +937,7 @@ app.post("/api/companies", async (req, res) => {
   if (body.id) {
     const { rows: exRows } = await pool.query(
       `SELECT sector, size_bucket, trade_name, siret, insurance_company, insurance_policy,
-              address, city, postal_code, website
+              address, city, postal_code, website, latitude, longitude
          FROM careers.company WHERE id = $1::uuid`,
       [body.id],
     );
@@ -973,11 +973,16 @@ app.post("/api/companies", async (req, res) => {
     const city = "city" in body ? optText(body.city) : ex.city;
     const postal_code = "postalCode" in body ? optText(body.postalCode) : ex.postal_code;
     const website = "website" in body ? optText(body.website) : ex.website;
+    const addressChanged =
+      address !== ex.address || city !== ex.city || postal_code !== ex.postal_code;
 
     await pool.query(
       `UPDATE careers.company SET name = $1, country = $2, sector = $3, size_bucket = $4,
            trade_name = $5, siret = $6, insurance_company = $7, insurance_policy = $8,
-           address = $9, city = $10, postal_code = $11, website = $12, updated_at = now()
+           address = $9, city = $10, postal_code = $11, website = $12,
+           latitude = CASE WHEN $14 THEN NULL ELSE latitude END,
+           longitude = CASE WHEN $14 THEN NULL ELSE longitude END,
+           updated_at = now()
         WHERE id = $13::uuid`,
       [
         body.name,
@@ -993,6 +998,7 @@ app.post("/api/companies", async (req, res) => {
         postal_code,
         website,
         body.id,
+        addressChanged,
       ],
     );
     await replaceContacts(body.id, body.contacts);
@@ -1274,9 +1280,10 @@ app.get("/api/admin/conventions/docusign/status", requireAdmin, (_req, res) => {
   res.json(getDocuSignConfigStatus());
 });
 
-app.get("/api/admin/dashboard/company-map", requireAdmin, async (_req, res) => {
+app.get("/api/admin/dashboard/company-map", requireAdmin, async (req, res) => {
   try {
-    const data = await buildDashboardCompanyMap(pool);
+    const geocodeMissing = req.query.warm === "1" || req.query.geocode === "1";
+    const data = await buildDashboardCompanyMap(pool, { geocodeMissing });
     res.json(data);
   } catch (e) {
     console.error(e);

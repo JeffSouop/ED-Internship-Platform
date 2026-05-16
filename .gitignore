@@ -19,6 +19,7 @@ dist-ssr
 backend/.env
 private.key
 data/company-geocode-cache.json
+backend/data/company-geocode-cache.json
 
 # Conventions Word générées (dossier convention/ à la racine)
 convention/*.docx

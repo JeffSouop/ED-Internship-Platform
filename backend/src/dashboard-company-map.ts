@@ -1,12 +1,19 @@
 import type pg from "pg";
 
 import {
-  buildCompanyAddressQuery,
+  buildGeocodeAttempts,
   campusCodesToGroup,
   CAMPUS_MAP_LOCATIONS,
-  geocodeCompany,
+  coordsFromDbRow,
+  geocodeCompanyRemote,
+  getCoordsFromCache,
   groupMarkerColor,
+  persistCompanyGeocode,
+  readGeocodeCache,
+  writeGeocodeCache as flushGeocodeCache,
   type CompanyCampusGroup,
+  type CompanyGeocodeParts,
+  type GeocodeCache,
 } from "./company-geocode.js";
 
 export type DashboardCampusMarker = {
@@ -43,6 +50,11 @@ export type DashboardCompanyMapResponse = {
   };
 };
 
+export type BuildDashboardCompanyMapOptions = {
+  /** Si true, appelle Nominatim pour les entreprises sans coordonnées (lent, ~1 req/s). */
+  geocodeMissing?: boolean;
+};
+
 function inferCampusCodeFromName(name: string | null | undefined): string | null {
   if (!name) return null;
   const n = name.toLowerCase();
@@ -55,9 +67,34 @@ function inferCampusCodeFromName(name: string | null | undefined): string | null
   return null;
 }
 
+function resolveCoords(
+  row: {
+    id: string;
+    latitude: number | string | null;
+    longitude: number | string | null;
+  },
+  parts: CompanyGeocodeParts,
+  cache: GeocodeCache,
+  geocodeMissing: boolean,
+): Promise<{ lat: number; lng: number } | null> {
+  const fromDb = coordsFromDbRow(row.latitude, row.longitude);
+  if (fromDb) return Promise.resolve(fromDb);
+
+  const fromCache = getCoordsFromCache(cache, row.id);
+  if (fromCache) return Promise.resolve(fromCache);
+
+  if (!geocodeMissing || buildGeocodeAttempts(parts).length === 0) return Promise.resolve(null);
+  return geocodeCompanyRemote(row.id, parts, cache);
+}
+
 export async function buildDashboardCompanyMap(
   pool: pg.Pool,
+  options: BuildDashboardCompanyMapOptions = {},
 ): Promise<DashboardCompanyMapResponse> {
+  const geocodeMissing = options.geocodeMissing === true;
+  const cache = readGeocodeCache();
+  let cacheDirty = false;
+
   const { rows } = await pool.query<{
     id: string;
     name: string;
@@ -65,6 +102,8 @@ export async function buildDashboardCompanyMap(
     address: string | null;
     city: string | null;
     postal_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
     campus_codes: string[] | null;
     campus_names: string[] | null;
     intern_count: string;
@@ -76,6 +115,8 @@ export async function buildDashboardCompanyMap(
       c.address,
       c.city,
       c.postal_code,
+      c.latitude,
+      c.longitude,
       COALESCE(
         array_agg(DISTINCT camp.code) FILTER (WHERE camp.code IS NOT NULL),
         '{}'
@@ -90,7 +131,7 @@ export async function buildDashboardCompanyMap(
     LEFT JOIN careers.student s ON s.student_id = m.student_id
     LEFT JOIN careers.promotion p ON p.id = s.promotion_id
     LEFT JOIN careers.campus camp ON camp.id = p.campus_id
-    GROUP BY c.id, c.name, c.country, c.address, c.city, c.postal_code
+    GROUP BY c.id, c.name, c.country, c.address, c.city, c.postal_code, c.latitude, c.longitude
     ORDER BY c.name
   `);
 
@@ -117,22 +158,27 @@ export async function buildDashboardCompanyMap(
     const campusGroup = campusCodesToGroup(codes);
     byGroup[campusGroup] += 1;
 
-    const query = buildCompanyAddressQuery({
+    const parts: CompanyGeocodeParts = {
       address: row.address,
       postalCode: row.postal_code,
       city: row.city,
       country: row.country,
       name: row.name,
-    });
-    if (!query) {
+    };
+    if (buildGeocodeAttempts(parts).length === 0) {
       notGeocoded += 1;
       continue;
     }
 
-    const coords = await geocodeCompany(row.id, query);
+    const coords = await resolveCoords(row, parts, cache, geocodeMissing);
     if (!coords) {
       notGeocoded += 1;
       continue;
+    }
+
+    if (geocodeMissing && coordsFromDbRow(row.latitude, row.longitude) === null) {
+      await persistCompanyGeocode(pool, row.id, coords.lat, coords.lng);
+      cacheDirty = true;
     }
 
     companies.push({
@@ -148,6 +194,8 @@ export async function buildDashboardCompanyMap(
       internCount: Number(row.intern_count) || 0,
     });
   }
+
+  if (cacheDirty) flushGeocodeCache(cache);
 
   return {
     campuses,
