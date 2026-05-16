@@ -49,19 +49,29 @@ function AdminLayout() {
   }
   if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
 
+  return <AdminShell onLogout={() => setAuthed(false)} />;
+}
+
+function AdminShell({ onLogout }: { onLogout: () => void }) {
+  const location = useLocation();
+  const isDashboard =
+    location.pathname === "/admin" || location.pathname === "/admin/";
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <Sidebar
-          onLogout={async () => {
-            await adminLogout();
-            setAuthed(false);
-          }}
-        />
-        <main className="flex-1 px-8 py-8">
-          <Outlet />
-        </main>
-      </div>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar
+        onLogout={async () => {
+          await adminLogout();
+          onLogout();
+        }}
+      />
+      <main
+        className={`flex min-h-0 flex-1 flex-col px-8 py-8 ${
+          isDashboard ? "overflow-hidden" : "overflow-y-auto"
+        }`}
+      >
+        <Outlet />
+      </main>
     </div>
   );
 }

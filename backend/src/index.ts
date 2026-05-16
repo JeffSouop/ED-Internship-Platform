@@ -45,6 +45,7 @@ import {
   sendConventionToDocuSign,
 } from "./docusign.js";
 import { listConventionTracking } from "./convention-tracking.js";
+import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
 import path from "node:path";
 
 const { Pool } = pg;
@@ -1166,6 +1167,16 @@ app.get("/api/admin/conventions/preview/:studentId", requireAdmin, (req, res) =>
 
 app.get("/api/admin/conventions/docusign/status", requireAdmin, (_req, res) => {
   res.json(getDocuSignConfigStatus());
+});
+
+app.get("/api/admin/dashboard/company-map", requireAdmin, async (_req, res) => {
+  try {
+    const data = await buildDashboardCompanyMap(pool);
+    res.json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Impossible de charger la carte des entreprises" });
+  }
 });
 
 app.get("/api/admin/conventions/tracking", requireAdmin, async (req, res) => {
