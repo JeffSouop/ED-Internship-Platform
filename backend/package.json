@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node --import tsx src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "seed:admin": "tsx scripts/seed-admin-user.ts"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "docusign-esign": "^9.0.0",
@@ -19,6 +21,7 @@
     "pizzip": "^3.2.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

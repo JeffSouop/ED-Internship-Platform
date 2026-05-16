@@ -43,9 +43,8 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://ducasse:ducasse_local_dev@postgres:5432/ducasse_careers
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ducasse2026}
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-local-dev-secret}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080,http://localhost:5173}
       PORT: "4000"
     ports:
       - "4000:4000"

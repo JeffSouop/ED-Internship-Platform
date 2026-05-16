@@ -30,6 +30,7 @@ import { Route as AdminConventionTrackingRouteImport } from './routes/admin.conv
 import { Route as AdminConventionRouteImport } from './routes/admin.convention'
 import { Route as AdminCompaniesRouteImport } from './routes/admin.companies'
 import { Route as AdminAttestationRouteImport } from './routes/admin.attestation'
+import { Route as AdminAccountRouteImport } from './routes/admin.account'
 import { Route as AdminCompaniesIndexRouteImport } from './routes/admin.companies.index'
 import { Route as AdminValidationsIdRouteImport } from './routes/admin.validations.$id'
 import { Route as AdminCompaniesIdRouteImport } from './routes/admin.companies.$id'
@@ -139,6 +140,11 @@ const AdminAttestationRoute = AdminAttestationRouteImport.update({
   path: '/attestation',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAccountRoute = AdminAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCompaniesIndexRoute = AdminCompaniesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/admin/account': typeof AdminAccountRoute
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/student': typeof StudentRouteWithChildren
+  '/admin/account': typeof AdminAccountRoute
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/convention': typeof AdminConventionRoute
   '/admin/convention-tracking': typeof AdminConventionTrackingRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/admin/account': typeof AdminAccountRoute
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/company'
     | '/student'
+    | '/admin/account'
     | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/student'
+    | '/admin/account'
     | '/admin/attestation'
     | '/admin/convention'
     | '/admin/convention-tracking'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/company'
     | '/student'
+    | '/admin/account'
     | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
@@ -465,6 +477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAttestationRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/account': {
+      id: '/admin/account'
+      path: '/account'
+      fullPath: '/admin/account'
+      preLoaderRoute: typeof AdminAccountRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/companies/': {
       id: '/admin/companies/'
       path: '/'
@@ -515,6 +534,7 @@ const AdminValidationsRouteWithChildren =
   AdminValidationsRoute._addFileChildren(AdminValidationsRouteChildren)
 
 interface AdminRouteChildren {
+  AdminAccountRoute: typeof AdminAccountRoute
   AdminAttestationRoute: typeof AdminAttestationRoute
   AdminCompaniesRoute: typeof AdminCompaniesRouteWithChildren
   AdminConventionRoute: typeof AdminConventionRoute
@@ -530,6 +550,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccountRoute: AdminAccountRoute,
   AdminAttestationRoute: AdminAttestationRoute,
   AdminCompaniesRoute: AdminCompaniesRouteWithChildren,
   AdminConventionRoute: AdminConventionRoute,

@@ -73,7 +73,13 @@ export function CompanyDetailDialog({ companyId, onOpenChange }: Props) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && companyId ? (
+      <Dialog
+        open
+        onOpenChange={(next) => {
+          if (!next) onOpenChange(false);
+        }}
+      >
         <DialogContent className="flex max-h-[min(90vh,880px)] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
           <div className="overflow-y-auto px-6 pb-4 pt-6">
             <DialogHeader className="space-y-1 text-left">
@@ -128,6 +134,7 @@ export function CompanyDetailDialog({ companyId, onOpenChange }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      ) : null}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
+import { useClientMounted } from "@/hooks/use-client-mounted";
 import { listSubmissions } from "@/services/students";
 import { listCompanies } from "@/services/companies";
 import { getDashboardCompanyMap } from "@/services/dashboard";
@@ -17,16 +18,27 @@ export const Route = createFileRoute("/admin/")({
 });
 
 function Dashboard() {
-  const subs = useQuery({ queryKey: ["submissions"], queryFn: listSubmissions });
-  const companies = useQuery({ queryKey: ["companies"], queryFn: listCompanies });
+  const mounted = useClientMounted();
+  const subs = useQuery({
+    queryKey: ["submissions"],
+    queryFn: listSubmissions,
+    enabled: mounted,
+  });
+  const companies = useQuery({
+    queryKey: ["companies"],
+    queryFn: listCompanies,
+    enabled: mounted,
+  });
   const tracking = useQuery({
     queryKey: ["convention-tracking"],
     queryFn: () => listConventionTracking({ skipRefresh: true }),
+    enabled: mounted,
   });
   const companyMap = useQuery({
     queryKey: ["dashboard-company-map"],
     queryFn: getDashboardCompanyMap,
     staleTime: 1000 * 60 * 30,
+    enabled: mounted,
   });
 
   const data = subs.data ?? [];
@@ -43,6 +55,13 @@ function Dashboard() {
           Vue d&apos;ensemble des soumissions, entreprises et conventions.
         </p>
       </header>
+
+      {(subs.isError || companies.isError) && (
+        <p className="shrink-0 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Données indisponibles — vérifiez que le backend tourne (
+          <code className="text-xs">npm run api:dev</code>) et que vous êtes bien connecté.
+        </p>
+      )}
 
       <div className="grid shrink-0 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Soumissions étudiants" value={data.length} hint={`${pending} en attente`} />

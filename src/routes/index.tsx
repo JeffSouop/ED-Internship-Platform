@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Building2,
@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { releaseUiLocks } from "@/lib/release-ui-lock";
+import { getAdminSession, type AdminUser } from "@/services/admin-auth";
 
 const HERO_IMAGE = "/hero-culinary.jpg";
 const CARD_STUDENT_IMAGE = "/card-student.jpg";
@@ -31,14 +34,35 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const navigate = useNavigate();
+  const [adminSession, setAdminSession] = useState<AdminUser | null>(null);
+
+  useEffect(() => {
+    releaseUiLocks();
+    getAdminSession().then(setAdminSession);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
+      {adminSession && (
+        <div className="border-b border-primary/20 bg-primary/5 px-6 py-2.5 text-center text-sm text-foreground">
+          Connecté en tant que{" "}
+          <span className="font-medium">{adminSession.fullName}</span> —{" "}
+          <button
+            type="button"
+            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+            onClick={() => void navigate({ to: "/admin" })}
+          >
+            Ouvrir le tableau de bord
+          </button>
+        </div>
+      )}
       <SiteHeader>
         <Link
           to="/admin"
-          className="rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/20"
+          className="rounded-full border border-primary-foreground/25 bg-primary-foreground/15 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-foreground/25"
         >
-          Espace équipe carrière
+          Espace équipe carrière →
         </Link>
       </SiteHeader>
 
@@ -75,6 +99,11 @@ function Index() {
             <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/85 sm:text-lg">
               Étudiants, entreprises d&apos;accueil et équipe carrière : un même parcours pour
               déposer, valider et suivre chaque dossier de stage.
+            </p>
+            <p className="mt-4 max-w-xl text-sm text-primary-foreground/75">
+              <strong className="font-medium text-primary-foreground">Équipe carrière :</strong>{" "}
+              utilisez le bouton en haut à droite « Espace équipe carrière » (connexion email +
+              mot de passe). Les formulaires ci-dessous sont réservés aux étudiants et entreprises.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <HeroCta to="/student/convention" primary>
@@ -174,18 +203,7 @@ function Index() {
         </section>
       </main>
 
-      <footer className="border-t border-primary/15 bg-primary text-primary-foreground">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row">
-          <img
-            src="/campus-paris-baseline-blanc.png"
-            alt="École Ducasse — Campus Paris"
-            className="h-10 w-auto opacity-90"
-          />
-          <p className="text-center text-xs text-primary-foreground/75 sm:text-right">
-            © {new Date().getFullYear()} École Ducasse — Département Stages &amp; Carrière
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

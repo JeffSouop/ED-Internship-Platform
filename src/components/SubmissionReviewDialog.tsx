@@ -69,8 +69,15 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
 
   const s = q.data;
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onOpenChange(false);
+      }}
+    >
       <DialogContent className="flex max-h-[min(90vh,900px)] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <div className="overflow-y-auto px-6 pb-4 pt-6">
           <DialogHeader className="space-y-3 text-left">

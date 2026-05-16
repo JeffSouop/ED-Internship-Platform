@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   Outlet,
   Link,
@@ -9,8 +10,17 @@ import {
 } from "@tanstack/react-router";
 
 import { Toaster } from "@/components/ui/sonner";
+import { releaseUiLocks } from "@/lib/release-ui-lock";
 
 import appCss from "../styles.css?url";
+
+function UiLockCleanup() {
+  const router = useRouter();
+  useEffect(() => {
+    releaseUiLocks();
+  }, [router.state.location.pathname]);
+  return null;
+}
 
 function NotFoundComponent() {
   return (
@@ -120,6 +130,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <UiLockCleanup />
       <Outlet />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>

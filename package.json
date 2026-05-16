@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "api:dev": "npm run dev --prefix backend",
+    "dev:stack": "npm run api:dev & npm run dev",
     "db:up": "docker compose up -d",
     "db:setup": "bash scripts/setup-database.sh",
     "compose:up": "docker compose up -d --build",

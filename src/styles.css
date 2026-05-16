@@ -199,6 +199,17 @@
     font-weight: 400;
   }
 
+  /* Évite qu’un scroll-lock modal orphelin bloque les clics sur toute la page */
+  body:not([data-scroll-locked]) {
+    pointer-events: auto !important;
+  }
+
+  [data-radix-dialog-overlay][data-state="closed"],
+  [data-radix-alert-dialog-overlay][data-state="closed"] {
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
+
   h1 {
     font-family: var(--font-heading);
     font-weight: 700;

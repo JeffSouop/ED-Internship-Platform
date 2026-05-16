@@ -7,7 +7,6 @@ loadEnv();
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import jwt from "jsonwebtoken";
 import pg from "pg";
 import { randomUUID } from "crypto";
 
@@ -61,13 +60,23 @@ import {
 import { listRuptures } from "./rupture-list.js";
 import { resolveRuptureAbsolutePath } from "./rupture-index.js";
 import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
+import {
+  createStaffUser,
+  findStaffByEmail,
+  listStaffUsers,
+  signStaffJwt,
+  toPublicStaffUser,
+  touchStaffLastLogin,
+  verifyStaffJwt,
+  verifyStaffPassword,
+} from "./staff-auth.js";
+import type { AdminJwtPayload } from "./staff-auth.js";
 import path from "node:path";
 
 const { Pool } = pg;
 
 const PORT = Number(process.env.PORT) || 4000;
 const DATABASE_URL = process.env.DATABASE_URL;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "ducasse2026";
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET ?? "dev-secret-change-me";
 /** Origines autorisées pour CORS (navigateur → API sur un autre port). Séparez par des virgules. */
 const FRONTEND_ORIGINS = (
@@ -114,22 +123,34 @@ app.get("/", (_req, res) => {
   );
 });
 
-function signAdminJwt(): string {
-  return jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
+function readStaffSession(req: express.Request): AdminJwtPayload | null {
+  const raw = req.cookies?.[COOKIE_NAME];
+  if (!raw) return null;
+  return verifyStaffJwt(raw, JWT_SECRET);
 }
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const raw = req.cookies?.[COOKIE_NAME];
-  if (!raw) {
+  const payload = readStaffSession(req);
+  if (!payload) {
     res.status(401).json({ error: "Non authentifié" });
     return;
   }
-  try {
-    jwt.verify(raw, JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: "Session invalide" });
+  (req as express.Request & { staff?: AdminJwtPayload }).staff = payload;
+  next();
+}
+
+function requireStaffAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const payload = readStaffSession(req);
+  if (!payload) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
   }
+  if (payload.role !== "admin") {
+    res.status(403).json({ error: "Réservé aux administrateurs" });
+    return;
+  }
+  (req as express.Request & { staff?: AdminJwtPayload }).staff = payload;
+  next();
 }
 
 async function loadStudent(studentId: string): Promise<Student | undefined> {
@@ -219,21 +240,43 @@ async function loadCompany(id: string) {
   );
 }
 
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 // ——— Auth ———
-app.post("/api/auth/login", (req, res) => {
-  const pwd = (req.body as { password?: string })?.password;
-  if (pwd !== ADMIN_PASSWORD) {
-    res.status(401).json({ error: "Mot de passe incorrect" });
+app.post("/api/auth/login", async (req, res) => {
+  const body = req.body as { email?: string; password?: string };
+  const email = body.email?.trim() ?? "";
+  const password = body.password ?? "";
+  if (!email || !password) {
+    res.status(400).json({ error: "Email et mot de passe requis" });
     return;
   }
-  const token = signAdminJwt();
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
-  res.json({ ok: true });
+
+  try {
+    const staff = await findStaffByEmail(pool, email);
+    if (!staff || !(await verifyStaffPassword(password, staff.passwordHash))) {
+      res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      return;
+    }
+
+    await touchStaffLastLogin(pool, staff.id);
+    const token = signStaffJwt(staff, JWT_SECRET);
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+    res.json({
+      ok: true,
+      user: toPublicStaffUser(staff),
+    });
+  } catch (e) {
+    console.error("POST /api/auth/login", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 app.post("/api/auth/logout", (_req, res) => {
@@ -242,16 +285,63 @@ app.post("/api/auth/logout", (_req, res) => {
 });
 
 app.get("/api/auth/me", (req, res) => {
-  const raw = req.cookies?.[COOKIE_NAME];
-  if (!raw) {
+  const payload = readStaffSession(req);
+  if (!payload) {
     res.status(401).json({ ok: false });
     return;
   }
+  res.json({
+    ok: true,
+    user: {
+      email: payload.email,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      fullName: payload.fullName,
+      role: payload.role,
+    },
+  });
+});
+
+app.get("/api/admin/staff-users", requireStaffAdmin, async (_req, res) => {
   try {
-    jwt.verify(raw, JWT_SECRET);
-    res.json({ ok: true });
-  } catch {
-    res.status(401).json({ ok: false });
+    const users = await listStaffUsers(pool);
+    res.json(users);
+  } catch (e) {
+    console.error("GET /api/admin/staff-users", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.post("/api/admin/staff-users", requireStaffAdmin, async (req, res) => {
+  const body = req.body as {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    password?: string;
+  };
+  const email = body.email?.trim() ?? "";
+  const firstName = body.firstName?.trim() ?? "";
+  const lastName = body.lastName?.trim() ?? "";
+  const password = body.password ?? "";
+  if (!email || !firstName || !lastName || !password) {
+    res.status(400).json({ error: "Prénom, nom, email et mot de passe sont requis" });
+    return;
+  }
+  try {
+    const user = await createStaffUser(pool, { email, firstName, lastName, password, role: "reviewer" });
+    res.status(201).json(toPublicStaffUser(user));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg === "EMAIL_EXISTS") {
+      res.status(409).json({ error: "Un compte existe déjà avec cette adresse email" });
+      return;
+    }
+    if (msg === "WEAK_PASSWORD") {
+      res.status(400).json({ error: "Le mot de passe doit contenir au moins 4 caractères" });
+      return;
+    }
+    console.error("POST /api/admin/staff-users", e);
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
