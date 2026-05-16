@@ -11,6 +11,9 @@ export type DocuSignSigner = {
   email: string;
 };
 
+/** documentId du modèle DocuSign (requis pour remplacer le document tout en gardant les onglets). */
+const templateDocumentIdCache = new Map<string, string>();
+
 function oauthBasePath(host: string): string {
   return host.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
@@ -55,34 +58,90 @@ export async function createDocuSignApiClient(
   return apiClient;
 }
 
-export async function sendEnvelopeFromTemplate(
+async function getTemplateDocumentId(
   apiClient: DocuSignApiClient,
   config: DocuSignConfig,
+): Promise<string> {
+  const cacheKey = `${config.accountId}:${config.templateId}`;
+  const cached = templateDocumentIdCache.get(cacheKey);
+  if (cached) return cached;
+
+  const templatesApi = new docusign.TemplatesApi(apiClient);
+  const result = await templatesApi.listDocuments(config.accountId, config.templateId);
+  const documents = result.templateDocuments ?? [];
+  if (documents.length === 0) {
+    throw new Error("Le modèle DocuSign ne contient aucun document.");
+  }
+
+  const documentId = String(documents[0].documentId ?? "");
+  if (!documentId) {
+    throw new Error("Impossible de lire le documentId du modèle DocuSign.");
+  }
+
+  templateDocumentIdCache.set(cacheKey, documentId);
+  return documentId;
+}
+
+/**
+ * Envoie la convention .docx générée localement en réutilisant le modèle DocuSign
+ * (emplacements de signature / onglets du server template).
+ */
+export async function sendEnvelopeWithCompositeTemplate(
+  apiClient: DocuSignApiClient,
+  config: DocuSignConfig,
+  documentPath: string,
+  documentName: string,
   student: DocuSignSigner,
   company: DocuSignSigner,
   emailSubject: string,
 ): Promise<string> {
-  const envelopeDefinition = new docusign.EnvelopeDefinition() as {
-    emailSubject?: string;
-    templateId?: string;
-    status?: string;
-    templateRoles?: unknown[];
+  const templateDocumentId = await getTemplateDocumentId(apiClient, config);
+  const fileBytes = fs.readFileSync(documentPath);
+
+  const envelopeDefinition = {
+    emailSubject,
+    status: "sent",
+    compositeTemplates: [
+      {
+        compositeTemplateId: "1",
+        serverTemplates: [
+          {
+            sequence: "1",
+            templateId: config.templateId,
+          },
+        ],
+        inlineTemplates: [
+          {
+            sequence: "2",
+            recipients: {
+              signers: [
+                {
+                  roleName: config.roleStudent,
+                  name: student.name,
+                  email: student.email,
+                  recipientId: "1",
+                  routingOrder: "1",
+                },
+                {
+                  roleName: config.roleCompany,
+                  name: company.name,
+                  email: company.email,
+                  recipientId: "2",
+                  routingOrder: "2",
+                },
+              ],
+            },
+          },
+        ],
+        document: {
+          documentId: templateDocumentId,
+          name: documentName,
+          fileExtension: "docx",
+          documentBase64: Buffer.from(fileBytes).toString("base64"),
+        },
+      },
+    ],
   };
-  envelopeDefinition.emailSubject = emailSubject;
-  envelopeDefinition.templateId = config.templateId;
-  envelopeDefinition.status = "sent";
-  envelopeDefinition.templateRoles = [
-    docusign.TemplateRole.constructFromObject({
-      roleName: config.roleStudent,
-      name: student.name,
-      email: student.email,
-    }),
-    docusign.TemplateRole.constructFromObject({
-      roleName: config.roleCompany,
-      name: company.name,
-      email: company.email,
-    }),
-  ];
 
   const envelopesApi = new docusign.EnvelopesApi(apiClient);
   const result = await envelopesApi.createEnvelope(config.accountId, {
@@ -91,6 +150,7 @@ export async function sendEnvelopeFromTemplate(
   return result.envelopeId ?? "";
 }
 
+/** Secours : positions de signature codées en dur (sans modèle DocuSign). */
 export async function sendEnvelopeWithDocument(
   apiClient: DocuSignApiClient,
   config: DocuSignConfig,

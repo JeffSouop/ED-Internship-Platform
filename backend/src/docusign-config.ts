@@ -1,7 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { PROJECT_ROOT } from "./convention-data.js";
+
 export type DocuSignSendMode = "template" | "document";
+
+/** Clé RSA DocuSign à la racine du projet (`private.key`). */
+export const DEFAULT_DOCUSIGN_PRIVATE_KEY_PATH = path.join(PROJECT_ROOT, "private.key");
+
+function resolvePrivateKeyPath(): string | null {
+  const fromEnv = process.env.DOCUSIGN_PRIVATE_KEY_PATH?.trim();
+  const candidate = fromEnv
+    ? path.isAbsolute(fromEnv)
+      ? fromEnv
+      : path.join(PROJECT_ROOT, fromEnv)
+    : DEFAULT_DOCUSIGN_PRIVATE_KEY_PATH;
+  return fs.existsSync(candidate) ? candidate : null;
+}
 
 export type DocuSignConfig = {
   integrationKey: string;
@@ -23,14 +38,12 @@ export function loadDocuSignConfig(): DocuSignConfig | null {
   const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY?.trim();
   const userId = process.env.DOCUSIGN_USER_ID?.trim();
   const accountId = process.env.DOCUSIGN_ACCOUNT_ID?.trim();
-  const privateKeyPath = process.env.DOCUSIGN_PRIVATE_KEY_PATH?.trim();
-
-  if (!integrationKey || !userId || !accountId || !privateKeyPath) {
+  if (!integrationKey || !userId || !accountId) {
     return null;
   }
 
-  const resolvedKey = path.resolve(privateKeyPath);
-  if (!fs.existsSync(resolvedKey)) {
+  const resolvedKey = resolvePrivateKeyPath();
+  if (!resolvedKey) {
     return null;
   }
 

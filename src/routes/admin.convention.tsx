@@ -128,7 +128,7 @@ function ConventionStagePage() {
     onError: (err: Error & { code?: string; consentUrl?: string }) => {
       if (err.code === "DOCUSIGN_NOT_CONFIGURED") {
         toast.info(
-          "DocuSign n’est pas configuré. Vérifiez backend/.env et le chemin vers private.key.",
+          "DocuSign n’est pas configuré. Vérifiez backend/.env et le fichier private.key à la racine du projet.",
         );
         return;
       }

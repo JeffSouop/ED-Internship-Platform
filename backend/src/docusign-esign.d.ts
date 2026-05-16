@@ -26,6 +26,12 @@ declare module "docusign-esign" {
         opts: { envelopeDefinition: unknown },
       ): Promise<{ envelopeId?: string }>;
     };
+    TemplatesApi: new (apiClient: InstanceType<DocusignSdk["ApiClient"]>) => {
+      listDocuments(
+        accountId: string,
+        templateId: string,
+      ): Promise<{ templateDocuments?: Array<{ documentId?: string; name?: string }> }>;
+    };
     EnvelopeDefinition: ModelClass;
     TemplateRole: ModelClass;
     Document: ModelClass;

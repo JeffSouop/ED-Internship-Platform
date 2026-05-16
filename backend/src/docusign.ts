@@ -7,7 +7,7 @@ import {
 import { resolveConventionAbsolutePath } from "./convention-index.js";
 import {
   createDocuSignApiClient,
-  sendEnvelopeFromTemplate,
+  sendEnvelopeWithCompositeTemplate,
   sendEnvelopeWithDocument,
   type DocuSignSigner,
 } from "./docusign-client.js";
@@ -174,9 +174,11 @@ export async function sendConventionToDocuSign(
         emailSubject,
       );
     } else {
-      envelopeId = await sendEnvelopeFromTemplate(
+      envelopeId = await sendEnvelopeWithCompositeTemplate(
         apiClient,
         config,
+        resolved.absolutePath,
+        resolved.entry.filename,
         student,
         company,
         emailSubject,

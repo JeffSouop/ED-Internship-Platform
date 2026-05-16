@@ -17,6 +17,7 @@ dist-ssr
 *.local
 .env
 backend/.env
+private.key
 
 # Conventions Word générées (dossier convention/ à la racine)
 convention/*.docx
