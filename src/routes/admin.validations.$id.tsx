@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 
 import { getSubmission, reviewSubmission } from "@/services/students";
+import { reviewDecisionToastMessage } from "@/lib/review-toast";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +27,7 @@ function ValidationDetail() {
     mutationFn: (status: "approved" | "changes_requested" | "rejected") =>
       reviewSubmission(id, { status, comment: comment.trim() || undefined }),
     onSuccess: (s) => {
-      toast.success(`Décision enregistrée : ${s.status}`);
+      toast.success(reviewDecisionToastMessage(s));
       qc.invalidateQueries({ queryKey: ["submission-id", id] });
       qc.invalidateQueries({ queryKey: ["submissions"] });
       qc.invalidateQueries({ queryKey: ["merged"] });

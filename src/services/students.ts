@@ -46,9 +46,11 @@ export async function upsertStudentSubmission(input: SubmitStudentInput): Promis
 export async function reviewSubmission(
   id: string,
   decision: { status: Exclude<SubmissionStatus, "pending">; comment?: string },
-): Promise<StudentSubmission> {
+): Promise<StudentSubmission & {
+  companyInviteEmail?: { sent: boolean; error?: string; skippedReason?: string };
+}> {
   await delay();
-  return apiJson<StudentSubmission>(`/api/submissions/${encodeURIComponent(id)}/decision`, {
+  return apiJson(`/api/submissions/${encodeURIComponent(id)}/decision`, {
     method: "POST",
     body: JSON.stringify({ status: decision.status, comment: decision.comment }),
   });

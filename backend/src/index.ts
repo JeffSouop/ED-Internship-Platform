@@ -60,6 +60,7 @@ import {
 import { listRuptures } from "./rupture-list.js";
 import { resolveRuptureAbsolutePath } from "./rupture-index.js";
 import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
+import { sendCompanyFormInviteOnApproval } from "./company-invite-email.js";
 import {
   createStaffUser,
   findStaffByEmail,
@@ -790,6 +791,17 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
     res.status(400).json({ error: "status invalide" });
     return;
   }
+
+  const { rows: beforeRows } = await pool.query<{ status: string }>(
+    `SELECT status::text AS status FROM careers.student_submission WHERE id = $1::uuid`,
+    [req.params.id],
+  );
+  if (!beforeRows[0]) {
+    res.status(404).json({ error: "Soumission introuvable" });
+    return;
+  }
+  const previousStatus = beforeRows[0].status;
+
   await pool.query(
     `UPDATE careers.student_submission SET
        status = $1::careers.submission_status,
@@ -800,7 +812,31 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
     [status, comment ?? null, req.params.id],
   );
   const sub = await loadSubmission(req.params.id);
-  res.json(sub);
+  if (!sub) {
+    res.status(404).json({ error: "Soumission introuvable" });
+    return;
+  }
+
+  let companyInviteEmail:
+    | { sent: boolean; error?: string; skippedReason?: string }
+    | undefined;
+
+  if (status === "approved" && previousStatus !== "approved") {
+    try {
+      const invite = await sendCompanyFormInviteOnApproval(sub);
+      if (invite.sent) {
+        companyInviteEmail = { sent: true };
+      } else {
+        companyInviteEmail = { sent: false, skippedReason: invite.reason };
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("[company-invite-email]", message);
+      companyInviteEmail = { sent: false, error: message };
+    }
+  }
+
+  res.json({ ...sub, companyInviteEmail });
 });
 
 // ——— Companies ———

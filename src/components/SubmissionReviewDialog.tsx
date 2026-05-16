@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getSubmission, reviewSubmission } from "@/services/students";
+import { reviewDecisionToastMessage } from "@/lib/review-toast";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,7 +59,7 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
     mutationFn: (status: "approved" | "changes_requested" | "rejected") =>
       reviewSubmission(submissionId!, { status, comment: comment.trim() || undefined }),
     onSuccess: (s) => {
-      toast.success(`Décision enregistrée : ${s.status}`);
+      toast.success(reviewDecisionToastMessage(s));
       qc.invalidateQueries({ queryKey: ["submission-id", submissionId] });
       qc.invalidateQueries({ queryKey: ["submissions"] });
       qc.invalidateQueries({ queryKey: ["merged"] });
