@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Eye, FileText, Loader2, Sparkles, UserRound, X } from "lucide-react";
+import { Eye, FilePenLine, FileText, Loader2, Sparkles, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   checkConventionExists,
   generateConvention,
+  getDocuSignStatus,
+  sendConventionToDocuSign,
 } from "@/services/conventions";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
@@ -40,6 +42,11 @@ function ConventionStagePage() {
     queryKey: ["convention-exists", studentId],
     queryFn: () => checkConventionExists(studentId),
     enabled: !!studentId,
+  });
+
+  const docusignStatusQ = useQuery({
+    queryKey: ["docusign-status"],
+    queryFn: getDocuSignStatus,
   });
 
   useEffect(() => {
@@ -113,8 +120,29 @@ function ConventionStagePage() {
     }
   }
 
+  const docusignM = useMutation({
+    mutationFn: () => sendConventionToDocuSign(studentId),
+    onSuccess: (data) => {
+      toast.success(data.message || "Demande d’envoi DocuSign enregistrée.");
+    },
+    onError: (err: Error & { code?: string }) => {
+      if (err.code === "DOCUSIGN_NOT_CONFIGURED") {
+        toast.info(
+          "DocuSign sera connecté prochainement. Les paramètres serveur (clés API) restent à configurer.",
+        );
+        return;
+      }
+      if (err.code === "DOCUSIGN_NOT_IMPLEMENTED") {
+        toast.info(err.message);
+        return;
+      }
+      toast.error(err.message || "Échec de l’envoi DocuSign.");
+    },
+  });
+
   const generateBusy = checkingExists || generateM.isPending;
   const showPreview = previewOpen && !!studentId;
+  const hasConvention = Boolean(conventionExistsQ.data?.exists);
 
   return (
     <div
@@ -256,6 +284,15 @@ function ConventionStagePage() {
               Voir la convention
             </Button>
           )}
+          {hasConvention && (
+            <DocuSignSendButton
+              hasConvention={hasConvention}
+              configured={docusignStatusQ.data?.configured}
+              pending={docusignM.isPending}
+              onSend={() => docusignM.mutate()}
+              compact
+            />
+          )}
         </div>
       </section>
       </div>
@@ -290,6 +327,12 @@ function ConventionStagePage() {
               <X className="h-4 w-4" />
             </Button>
           </div>
+          <DocuSignSendButton
+            hasConvention={hasConvention}
+            configured={docusignStatusQ.data?.configured}
+            pending={docusignM.isPending}
+            onSend={() => docusignM.mutate()}
+          />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4">
             <ConventionDocxPreview
               studentId={studentId}
@@ -298,6 +341,50 @@ function ConventionStagePage() {
             />
           </div>
         </aside>
+      )}
+    </div>
+  );
+}
+
+function DocuSignSendButton({
+  hasConvention,
+  configured,
+  pending,
+  onSend,
+  compact = false,
+}: {
+  hasConvention: boolean;
+  configured?: boolean;
+  pending: boolean;
+  onSend: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn(!compact && "border-b border-border px-3 py-2.5 sm:px-4")}>
+      <Button
+        type="button"
+        variant={compact ? "outline" : "secondary"}
+        className={cn("gap-2", compact ? "w-full" : "w-full")}
+        size={compact ? "default" : "default"}
+        disabled={!hasConvention || pending}
+        onClick={onSend}
+      >
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <FilePenLine className="h-4 w-4" />
+        )}
+        Envoyer pour signature (DocuSign)
+      </Button>
+      {!configured && (
+        <p
+          className={cn(
+            "text-muted-foreground",
+            compact ? "mt-2 text-center text-xs" : "mt-1.5 text-center text-[11px]",
+          )}
+        >
+          Connexion DocuSign à configurer sur le serveur
+        </p>
       )}
     </div>
   );

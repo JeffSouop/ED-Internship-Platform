@@ -39,6 +39,11 @@ import {
   generateConventionDocx,
 } from "./convention-generate.js";
 import { resolveConventionAbsolutePath } from "./convention-index.js";
+import {
+  DocuSignError,
+  getDocuSignConfigStatus,
+  sendConventionToDocuSign,
+} from "./docusign.js";
 import path from "node:path";
 
 const { Pool } = pg;
@@ -1156,6 +1161,30 @@ app.get("/api/admin/conventions/preview/:studentId", requireAdmin, (req, res) =>
     `inline; filename="${path.basename(resolved.entry.filename)}"`,
   );
   res.sendFile(resolved.absolutePath);
+});
+
+app.get("/api/admin/conventions/docusign/status", requireAdmin, (_req, res) => {
+  res.json(getDocuSignConfigStatus());
+});
+
+app.post("/api/admin/conventions/docusign/send", requireAdmin, async (req, res) => {
+  const studentId =
+    typeof req.body?.studentId === "string" ? req.body.studentId.trim() : "";
+  if (!studentId) {
+    res.status(400).json({ error: "studentId requis" });
+    return;
+  }
+  try {
+    const result = await sendConventionToDocuSign(studentId);
+    res.json(result);
+  } catch (e) {
+    if (e instanceof DocuSignError) {
+      res.status(e.status).json({ error: e.message, code: e.code });
+      return;
+    }
+    console.error(e);
+    res.status(500).json({ error: "Erreur lors de l’envoi DocuSign" });
+  }
 });
 
 app.get("/api/admin/conventions/exists/:studentId", requireAdmin, (req, res) => {
