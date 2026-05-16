@@ -5,7 +5,14 @@ import { useMemo, useState } from "react";
 import { listStudents } from "@/services/students";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { Student } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { INTAKES, type Intake, type Student } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -14,11 +21,24 @@ export const Route = createFileRoute("/admin/students")({
 function StudentsPage() {
   const q = useQuery({ queryKey: ["students"], queryFn: listStudents });
   const [search, setSearch] = useState("");
+  const [campus, setCampus] = useState<string>("all");
+  const [promotion, setPromotion] = useState<Intake | "all">("all");
+
+  const campusOptions = useMemo(() => {
+    const values = new Set((q.data ?? []).map((st) => st.campus).filter(Boolean));
+    return Array.from(values).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [q.data]);
 
   const rows = useMemo(() => {
-    const list = q.data ?? [];
-    if (!search.trim()) return list;
-    const s = search.toLowerCase();
+    let list = q.data ?? [];
+    if (campus !== "all") {
+      list = list.filter((st) => st.campus === campus);
+    }
+    if (promotion !== "all") {
+      list = list.filter((st) => st.promotion === promotion);
+    }
+    const s = search.trim().toLowerCase();
+    if (!s) return list;
     return list.filter(
       (st) =>
         st.firstName.toLowerCase().includes(s) ||
@@ -26,7 +46,7 @@ function StudentsPage() {
         st.id.toLowerCase().includes(s) ||
         st.email.toLowerCase().includes(s),
     );
-  }, [q.data, search]);
+  }, [q.data, search, campus, promotion]);
 
   return (
     <div className="space-y-6">
@@ -37,7 +57,40 @@ function StudentsPage() {
             Liste consolidée des étudiants enregistrés sur la plateforme.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-40">
+            <Select value={campus} onValueChange={setCampus}>
+              <SelectTrigger aria-label="Filtrer par campus">
+                <SelectValue placeholder="Campus" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les campus</SelectItem>
+                {campusOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-44">
+            <Select
+              value={promotion}
+              onValueChange={(v) => setPromotion(v as Intake | "all")}
+            >
+              <SelectTrigger aria-label="Filtrer par promotion">
+                <SelectValue placeholder="Promotion" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les promotions</SelectItem>
+                {INTAKES.map((i) => (
+                  <SelectItem key={i} value={i}>
+                    {i}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -78,7 +131,9 @@ function StudentsPage() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  Aucun étudiant.
+                  {search.trim() || campus !== "all" || promotion !== "all"
+                    ? "Aucun étudiant ne correspond aux filtres."
+                    : "Aucun étudiant."}
                 </td>
               </tr>
             )}
