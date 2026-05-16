@@ -25,6 +25,10 @@ convention/*.docx
 convention/.conventions-index.json
 convention/.convention-docusign.json
 
+# Attestations Word générées (dossier attestation/ à la racine)
+attestation/*.docx
+attestation/.attestations-index.json
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

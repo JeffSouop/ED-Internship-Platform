@@ -16,6 +16,10 @@ type ConventionDocxPreviewProps = {
   refreshKey: number;
   className?: string;
   layout?: "default" | "sidebar";
+  /** Chemin API de prévisualisation (défaut : convention). */
+  previewPath?: (studentId: string) => string;
+  loadingLabel?: string;
+  errorFallback?: string;
 };
 
 function collectDocxPages(container: HTMLElement): HTMLElement[] {
@@ -34,11 +38,18 @@ function collectDocxPages(container: HTMLElement): HTMLElement[] {
   return blocks.length > 0 ? blocks : [];
 }
 
+function defaultPreviewPath(studentId: string): string {
+  return `/api/admin/conventions/preview/${encodeURIComponent(studentId)}`;
+}
+
 export function ConventionDocxPreview({
   studentId,
   refreshKey,
   className,
   layout = "default",
+  previewPath = defaultPreviewPath,
+  loadingLabel = "Chargement de l'aperçu…",
+  errorFallback = "Impossible d'afficher le document.",
 }: ConventionDocxPreviewProps) {
   const sidebar = layout === "sidebar";
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -91,9 +102,7 @@ export function ConventionDocxPreview({
       if (styleRef.current) styleRef.current.innerHTML = "";
 
       try {
-        const res = await apiFetch(
-          `/api/admin/conventions/preview/${encodeURIComponent(studentId)}`,
-        );
+        const res = await apiFetch(previewPath(studentId));
         if (!res.ok) {
           let message = res.statusText;
           try {
@@ -131,7 +140,7 @@ export function ConventionDocxPreview({
         });
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Impossible d’afficher la convention.");
+          setError(e instanceof Error ? e.message : errorFallback);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -142,7 +151,7 @@ export function ConventionDocxPreview({
     return () => {
       cancelled = true;
     };
-  }, [studentId, refreshKey, sidebar, applyPageVisibility, fitZoomToViewport]);
+  }, [studentId, refreshKey, sidebar, applyPageVisibility, fitZoomToViewport, previewPath, errorFallback]);
 
   useEffect(() => {
     if (loading || pageCount === 0) return;
@@ -233,7 +242,7 @@ export function ConventionDocxPreview({
       {loading && (
         <div className="flex flex-1 items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          Chargement de l&apos;aperçu…
+          {loadingLabel}
         </div>
       )}
 

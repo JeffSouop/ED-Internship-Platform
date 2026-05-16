@@ -10,6 +10,7 @@ import {
   LogOut,
   FileText,
   FileCheck,
+  Award,
   ScrollText,
   ClipboardList,
 } from "lucide-react";
@@ -110,10 +111,10 @@ function LoginGate({ onSuccess }: { onSuccess: () => void }) {
         <EcoleDucasseBrand
           asLink={false}
           variant="inverse"
-          className="mb-4 max-w-none rounded-md bg-primary p-4"
-          logoClassName="h-auto w-full max-h-28"
+          className="mb-4 max-w-none flex-col items-center rounded-md bg-primary p-4 sm:flex-col"
+          logoClassName="mx-auto h-auto w-full max-h-28 object-contain object-center"
         />
-        <div>
+        <div className="text-center">
           <h1 className="text-lg font-semibold">Espace équipe carrière</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Saisissez le mot de passe administrateur.
@@ -145,6 +146,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
     { to: "/admin", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
     { to: "/admin/validations", label: "Validations", icon: ClipboardCheck },
     { to: "/admin/convention", label: "Convention de stage", icon: ScrollText },
+    { to: "/admin/attestation", label: "Attestation de stage", icon: Award },
     { to: "/admin/feuille-suivi", label: "Feuille de suivi", icon: FileCheck },
     { to: "/admin/convention-tracking", label: "Suivi conventions", icon: ClipboardList },
     { to: "/admin/form-log", label: "Journal formulaires", icon: FileText },

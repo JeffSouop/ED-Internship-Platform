@@ -27,6 +27,7 @@ import { Route as AdminFeuilleSuiviRouteImport } from './routes/admin.feuille-su
 import { Route as AdminConventionTrackingRouteImport } from './routes/admin.convention-tracking'
 import { Route as AdminConventionRouteImport } from './routes/admin.convention'
 import { Route as AdminCompaniesRouteImport } from './routes/admin.companies'
+import { Route as AdminAttestationRouteImport } from './routes/admin.attestation'
 import { Route as AdminCompaniesIndexRouteImport } from './routes/admin.companies.index'
 import { Route as AdminValidationsIdRouteImport } from './routes/admin.validations.$id'
 import { Route as AdminCompaniesIdRouteImport } from './routes/admin.companies.$id'
@@ -121,6 +122,11 @@ const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAttestationRoute = AdminAttestationRouteImport.update({
+  id: '/attestation',
+  path: '/attestation',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCompaniesIndexRoute = AdminCompaniesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
+  '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
   '/admin/convention-tracking': typeof AdminConventionTrackingRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/attestation': typeof AdminAttestationRoute
   '/admin/convention': typeof AdminConventionRoute
   '/admin/convention-tracking': typeof AdminConventionTrackingRoute
   '/admin/feuille-suivi': typeof AdminFeuilleSuiviRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
+  '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
   '/admin/convention-tracking': typeof AdminConventionTrackingRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/company'
+    | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
     | '/admin/convention-tracking'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/attestation'
     | '/admin/convention'
     | '/admin/convention-tracking'
     | '/admin/feuille-suivi'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/company'
+    | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
     | '/admin/convention-tracking'
@@ -410,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCompaniesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/attestation': {
+      id: '/admin/attestation'
+      path: '/attestation'
+      fullPath: '/admin/attestation'
+      preLoaderRoute: typeof AdminAttestationRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/companies/': {
       id: '/admin/companies/'
       path: '/'
@@ -460,6 +479,7 @@ const AdminValidationsRouteWithChildren =
   AdminValidationsRoute._addFileChildren(AdminValidationsRouteChildren)
 
 interface AdminRouteChildren {
+  AdminAttestationRoute: typeof AdminAttestationRoute
   AdminCompaniesRoute: typeof AdminCompaniesRouteWithChildren
   AdminConventionRoute: typeof AdminConventionRoute
   AdminConventionTrackingRoute: typeof AdminConventionTrackingRoute
@@ -473,6 +493,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAttestationRoute: AdminAttestationRoute,
   AdminCompaniesRoute: AdminCompaniesRouteWithChildren,
   AdminConventionRoute: AdminConventionRoute,
   AdminConventionTrackingRoute: AdminConventionTrackingRoute,
