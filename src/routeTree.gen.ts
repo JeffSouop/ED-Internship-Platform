@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudentRouteImport } from './routes/student'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -33,6 +34,11 @@ import { Route as AdminCompaniesIndexRouteImport } from './routes/admin.companie
 import { Route as AdminValidationsIdRouteImport } from './routes/admin.validations.$id'
 import { Route as AdminCompaniesIdRouteImport } from './routes/admin.companies.$id'
 
+const StudentRoute = StudentRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompanyRoute = CompanyRouteImport.update({
   id: '/company',
   path: '/company',
@@ -59,19 +65,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   getParentRoute: () => AdminRoute,
 } as any)
 const StudentMerciRoute = StudentMerciRouteImport.update({
-  id: '/student/merci',
-  path: '/student/merci',
-  getParentRoute: () => rootRouteImport,
+  id: '/merci',
+  path: '/merci',
+  getParentRoute: () => StudentRoute,
 } as any)
 const StudentConventionRoute = StudentConventionRouteImport.update({
-  id: '/student/convention',
-  path: '/student/convention',
-  getParentRoute: () => rootRouteImport,
+  id: '/convention',
+  path: '/convention',
+  getParentRoute: () => StudentRoute,
 } as any)
 const StudentTokenRoute = StudentTokenRouteImport.update({
-  id: '/student/$token',
-  path: '/student/$token',
-  getParentRoute: () => rootRouteImport,
+  id: '/$token',
+  path: '/$token',
+  getParentRoute: () => StudentRoute,
 } as any)
 const CompanyTokenRoute = CompanyTokenRouteImport.update({
   id: '/$token',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
+  '/student': typeof StudentRouteWithChildren
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/student': typeof StudentRouteWithChildren
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/convention': typeof AdminConventionRoute
   '/admin/convention-tracking': typeof AdminConventionTrackingRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
+  '/student': typeof StudentRouteWithChildren
   '/admin/attestation': typeof AdminAttestationRoute
   '/admin/companies': typeof AdminCompaniesRouteWithChildren
   '/admin/convention': typeof AdminConventionRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/company'
+    | '/student'
     | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/student'
     | '/admin/attestation'
     | '/admin/convention'
     | '/admin/convention-tracking'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/company'
+    | '/student'
     | '/admin/attestation'
     | '/admin/companies'
     | '/admin/convention'
@@ -301,13 +313,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   CompanyRoute: typeof CompanyRouteWithChildren
-  StudentTokenRoute: typeof StudentTokenRoute
-  StudentConventionRoute: typeof StudentConventionRoute
-  StudentMerciRoute: typeof StudentMerciRoute
+  StudentRoute: typeof StudentRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/company': {
       id: '/company'
       path: '/company'
@@ -345,24 +362,24 @@ declare module '@tanstack/react-router' {
     }
     '/student/merci': {
       id: '/student/merci'
-      path: '/student/merci'
+      path: '/merci'
       fullPath: '/student/merci'
       preLoaderRoute: typeof StudentMerciRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/student/convention': {
       id: '/student/convention'
-      path: '/student/convention'
+      path: '/convention'
       fullPath: '/student/convention'
       preLoaderRoute: typeof StudentConventionRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/student/$token': {
       id: '/student/$token'
-      path: '/student/$token'
+      path: '/$token'
       fullPath: '/student/$token'
       preLoaderRoute: typeof StudentTokenRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/company/$token': {
       id: '/company/$token'
@@ -542,13 +559,26 @@ const CompanyRouteChildren: CompanyRouteChildren = {
 const CompanyRouteWithChildren =
   CompanyRoute._addFileChildren(CompanyRouteChildren)
 
+interface StudentRouteChildren {
+  StudentTokenRoute: typeof StudentTokenRoute
+  StudentConventionRoute: typeof StudentConventionRoute
+  StudentMerciRoute: typeof StudentMerciRoute
+}
+
+const StudentRouteChildren: StudentRouteChildren = {
+  StudentTokenRoute: StudentTokenRoute,
+  StudentConventionRoute: StudentConventionRoute,
+  StudentMerciRoute: StudentMerciRoute,
+}
+
+const StudentRouteWithChildren =
+  StudentRoute._addFileChildren(StudentRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   CompanyRoute: CompanyRouteWithChildren,
-  StudentTokenRoute: StudentTokenRoute,
-  StudentConventionRoute: StudentConventionRoute,
-  StudentMerciRoute: StudentMerciRoute,
+  StudentRoute: StudentRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
