@@ -1142,13 +1142,14 @@ app.post("/api/admin/conventions/generate", requireAdmin, async (req, res) => {
     return;
   }
   try {
-    const { buffer, filename } = await generateConventionDocx(pool, studentId);
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    );
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.send(buffer);
+    const result = await generateConventionDocx(pool, studentId);
+    res.json({
+      ok: true,
+      studentId,
+      filename: result.filename,
+      path: result.relativePath,
+      message: "La convention a été générée.",
+    });
   } catch (e) {
     if (e instanceof ConventionGenerateError) {
       res.status(e.status).json({ error: e.message });

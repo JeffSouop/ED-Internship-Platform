@@ -7,14 +7,24 @@ import { conventionBenefitPlaceholders, extractBenefitIds } from "./convention-b
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+export const PROJECT_ROOT = path.resolve(__dirname, "../..");
+
 export const DEFAULT_CONVENTION_TEMPLATE = path.resolve(
   __dirname,
   "../../templates/Modele2025ConventiondestageFPADv0.11.docx",
 );
 
+export const DEFAULT_CONVENTION_OUTPUT_DIR = path.join(PROJECT_ROOT, "convention");
+
 export function resolveConventionTemplatePath(): string {
   const fromEnv = process.env.CONVENTION_TEMPLATE_PATH?.trim();
   return fromEnv && fromEnv.length > 0 ? path.resolve(fromEnv) : DEFAULT_CONVENTION_TEMPLATE;
+}
+
+/** Dossier d’enregistrement des conventions générées (racine du projet par défaut). */
+export function resolveConventionOutputDir(): string {
+  const fromEnv = process.env.CONVENTION_OUTPUT_DIR?.trim();
+  return fromEnv && fromEnv.length > 0 ? path.resolve(fromEnv) : DEFAULT_CONVENTION_OUTPUT_DIR;
 }
 
 function str(v: unknown): string {
@@ -28,6 +38,28 @@ function isoDate(v: unknown): string | null {
   const s = String(v);
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1]! : null;
+}
+
+/** Segment de nom de fichier sûr (sans espaces ni caractères interdits). */
+export function sanitizeFilenamePart(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/['’]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "")
+    .slice(0, 80);
+}
+
+/** Ex. DupontMarie-ConventionDeStage-RestaurantLeGourmet.docx */
+export function buildConventionFilename(
+  lastName: string,
+  firstName: string,
+  companyName: string,
+): string {
+  const nom = sanitizeFilenamePart(lastName) || "Etudiant";
+  const prenom = sanitizeFilenamePart(firstName);
+  const entreprise = sanitizeFilenamePart(companyName) || "Entreprise";
+  return `${nom}${prenom}-ConventionDeStage-${entreprise}.docx`;
 }
 
 export function formatDateFr(v: unknown): string {

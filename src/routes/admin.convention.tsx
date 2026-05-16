@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { FileText, Loader2, Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
-import { downloadConvention } from "@/services/conventions";
+import { generateConvention } from "@/services/conventions";
 import { listStudents, getSubmissionByStudent } from "@/services/students";
 import { internshipWeeksBetween } from "@/lib/internship-weeks";
 import { StudentPickerCombobox } from "@/components/StudentPickerCombobox";
@@ -51,9 +51,11 @@ function ConventionStagePage() {
     weeksCount !== null ? `${weeksCount} semaine${weeksCount > 1 ? "s" : ""}` : "—";
 
   const generateM = useMutation({
-    mutationFn: () => downloadConvention(studentId),
-    onSuccess: () => {
-      toast.success("Convention téléchargée.");
+    mutationFn: () => generateConvention(studentId),
+    onSuccess: (data) => {
+      toast.success("La convention a été générée.", {
+        description: `Enregistrée dans ${data.path}`,
+      });
     },
     onError: (err: Error) => {
       toast.error(err.message || "Échec de la génération.");
@@ -159,7 +161,8 @@ function ConventionStagePage() {
             Générer la convention
           </Button>
           <p className="text-xs text-muted-foreground">
-            Modèle Modele2025ConventiondestageFPADv0.11.docx — téléchargement .docx.
+            Les fichiers sont enregistrés dans le dossier <code className="rounded bg-muted px-1">convention/</code> à
+            la racine du projet.
           </p>
         </div>
       </section>

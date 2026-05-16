@@ -18,6 +18,9 @@ dist-ssr
 .env
 backend/.env
 
+# Conventions Word générées (dossier convention/ à la racine)
+convention/*.docx
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

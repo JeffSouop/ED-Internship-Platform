@@ -1,14 +1,26 @@
 import fs from "node:fs";
+import path from "node:path";
 
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import type pg from "pg";
 
 import {
+  PROJECT_ROOT,
+  buildConventionFilename,
   buildConventionTemplateData,
   loadConventionSourceRow,
+  resolveConventionOutputDir,
   resolveConventionTemplatePath,
 } from "./convention-data.js";
+
+export type ConventionGenerateResult = {
+  filename: string;
+  /** Chemin absolu sur le serveur */
+  absolutePath: string;
+  /** Chemin relatif depuis la racine du projet (ex. convention/…) */
+  relativePath: string;
+};
 
 export class ConventionGenerateError extends Error {
   constructor(
@@ -23,7 +35,7 @@ export class ConventionGenerateError extends Error {
 export async function generateConventionDocx(
   pool: pg.Pool,
   studentId: string,
-): Promise<{ buffer: Buffer; filename: string }> {
+): Promise<ConventionGenerateResult> {
   const templatePath = resolveConventionTemplatePath();
   if (!fs.existsSync(templatePath)) {
     throw new ConventionGenerateError(
@@ -71,9 +83,30 @@ export async function generateConventionDocx(
     compression: "DEFLATE",
   }) as Buffer;
 
-  const safeId = studentId.replace(/[^\w.-]+/g, "_");
-  const datePart = new Date().toISOString().slice(0, 10);
-  const filename = `convention-stage-${safeId}-${datePart}.docx`;
+  let filename = buildConventionFilename(
+    data.Nom_Etud,
+    data.Prenoom_Etud,
+    data.Nom_entreprise,
+  );
 
-  return { buffer, filename };
+  const outputDir = resolveConventionOutputDir();
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  let absolutePath = path.join(outputDir, filename);
+  if (fs.existsSync(absolutePath)) {
+    const stem = filename.replace(/\.docx$/i, "");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+    filename = `${stem}-${stamp}.docx`;
+    absolutePath = path.join(outputDir, filename);
+  }
+
+  fs.writeFileSync(absolutePath, buffer);
+
+  const relativePath = path.relative(PROJECT_ROOT, absolutePath);
+
+  return {
+    filename,
+    absolutePath,
+    relativePath: relativePath.split(path.sep).join("/"),
+  };
 }
