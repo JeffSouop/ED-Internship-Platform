@@ -8,8 +8,7 @@ import { getSubmission, reviewSubmission } from "@/services/students";
 import { reviewDecisionToastMessage } from "@/lib/review-toast";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { SubmissionEmailBodyField } from "@/components/SubmissionEmailBodyField";
 
 export const Route = createFileRoute("/admin/validations/$id")({
   component: ValidationDetail,
@@ -21,11 +20,14 @@ function ValidationDetail() {
   const qc = useQueryClient();
 
   const q = useQuery({ queryKey: ["submission-id", id], queryFn: () => getSubmission(id) });
-  const [comment, setComment] = useState("");
+  const [emailBody, setEmailBody] = useState("");
 
   const review = useMutation({
     mutationFn: (status: "approved" | "changes_requested" | "rejected") =>
-      reviewSubmission(id, { status, comment: comment.trim() || undefined }),
+      reviewSubmission(id, {
+        status,
+        emailBody: status === "approved" ? undefined : emailBody.trim(),
+      }),
     onSuccess: (s) => {
       toast.success(reviewDecisionToastMessage(s));
       qc.invalidateQueries({ queryKey: ["submission-id", id] });
@@ -42,7 +44,7 @@ function ValidationDetail() {
   const s = q.data;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <Link
         to="/admin/validations"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -89,17 +91,12 @@ function ValidationDetail() {
           Décision
         </h2>
         <div className="mt-4 space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
-              Commentaire (obligatoire pour Modifications / Refus)
-            </Label>
-            <Textarea
-              rows={3}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Ex : merci de préciser les missions confiées."
-            />
-          </div>
+          <SubmissionEmailBodyField
+            submissionId={id}
+            value={emailBody}
+            onChange={setEmailBody}
+            enabled
+          />
           <div className="flex flex-wrap gap-3 border-t border-border pt-4">
             <Button
               onClick={() => review.mutate("approved")}
@@ -111,8 +108,8 @@ function ValidationDetail() {
             <Button
               variant="outline"
               onClick={() => {
-                if (!comment.trim()) {
-                  toast.error("Un commentaire est requis pour demander des modifications.");
+                if (!emailBody.trim()) {
+                  toast.error("Le corps du message e-mail est obligatoire.");
                   return;
                 }
                 review.mutate("changes_requested");
@@ -124,8 +121,8 @@ function ValidationDetail() {
             <Button
               variant="destructive"
               onClick={() => {
-                if (!comment.trim()) {
-                  toast.error("Un commentaire est requis pour refuser.");
+                if (!emailBody.trim()) {
+                  toast.error("Le corps du message e-mail est obligatoire.");
                   return;
                 }
                 review.mutate("rejected");

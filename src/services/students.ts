@@ -43,15 +43,35 @@ export async function upsertStudentSubmission(input: SubmitStudentInput): Promis
   });
 }
 
+export async function getSubmissionEmailDraft(
+  id: string,
+  decision: "changes_requested" | "rejected",
+): Promise<{ subject: string; body: string }> {
+  await delay();
+  const params = new URLSearchParams({ decision });
+  return apiJson(`/api/submissions/${encodeURIComponent(id)}/email-draft?${params.toString()}`);
+}
+
 export async function reviewSubmission(
   id: string,
-  decision: { status: Exclude<SubmissionStatus, "pending">; comment?: string },
-): Promise<StudentSubmission & {
-  companyInviteEmail?: { sent: boolean; error?: string; skippedReason?: string };
-}> {
+  decision: {
+    status: Exclude<SubmissionStatus, "pending">;
+    comment?: string;
+    emailBody?: string;
+  },
+): Promise<
+  StudentSubmission & {
+    companyInviteEmail?: { sent: boolean; error?: string; skippedReason?: string };
+    studentDecisionEmail?: { sent: boolean; error?: string; skippedReason?: string };
+  }
+> {
   await delay();
   return apiJson(`/api/submissions/${encodeURIComponent(id)}/decision`, {
     method: "POST",
-    body: JSON.stringify({ status: decision.status, comment: decision.comment }),
+    body: JSON.stringify({
+      status: decision.status,
+      comment: decision.comment,
+      emailBody: decision.emailBody,
+    }),
   });
 }

@@ -6,23 +6,50 @@ export type SubmissionDecisionResponse = StudentSubmission & {
     error?: string;
     skippedReason?: string;
   };
+  studentDecisionEmail?: {
+    sent: boolean;
+    error?: string;
+    skippedReason?: string;
+  };
 };
+
+function emailSkipLabel(reason?: string): string {
+  switch (reason) {
+    case "no_company_email":
+      return "pas d’e-mail entreprise sur la fiche";
+    case "no_student_email":
+      return "pas d’e-mail école sur la fiche étudiant";
+    case "invalid_email":
+      return "adresse e-mail invalide";
+    case "brevo_not_configured":
+      return "Brevo non configuré";
+    case "no_token":
+      return "impossible de générer le lien étudiant";
+    default:
+      return reason ?? "envoi impossible";
+  }
+}
 
 export function reviewDecisionToastMessage(s: SubmissionDecisionResponse): string {
   const base = `Décision enregistrée : ${s.status}`;
-  if (s.status !== "approved" || !s.companyInviteEmail) return base;
+  const parts: string[] = [base];
 
-  const mail = s.companyInviteEmail;
-  if (mail.sent) return `${base} — e-mail envoyé à l’entreprise.`;
-  if (mail.error) return `${base} — e-mail entreprise non envoyé (${mail.error}).`;
-  if (mail.skippedReason === "no_company_email") {
-    return `${base} — pas d’e-mail entreprise sur la fiche étudiant.`;
+  if (s.status === "approved" && s.companyInviteEmail) {
+    const mail = s.companyInviteEmail;
+    if (mail.sent) parts.push("e-mail entreprise envoyé");
+    else if (mail.error) parts.push(`e-mail entreprise : ${mail.error}`);
+    else parts.push(`e-mail entreprise : ${emailSkipLabel(mail.skippedReason)}`);
   }
-  if (mail.skippedReason === "invalid_email") {
-    return `${base} — e-mail entreprise invalide.`;
+
+  if (
+    (s.status === "changes_requested" || s.status === "rejected") &&
+    s.studentDecisionEmail
+  ) {
+    const mail = s.studentDecisionEmail;
+    if (mail.sent) parts.push("e-mail étudiant envoyé");
+    else if (mail.error) parts.push(`e-mail étudiant : ${mail.error}`);
+    else parts.push(`e-mail étudiant : ${emailSkipLabel(mail.skippedReason)}`);
   }
-  if (mail.skippedReason === "brevo_not_configured") {
-    return `${base} — Brevo non configuré (BREVO_API_KEY / BREVO_SENDER_EMAIL).`;
-  }
-  return `${base} — e-mail entreprise non envoyé.`;
+
+  return parts.join(" — ");
 }

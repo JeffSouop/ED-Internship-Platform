@@ -62,6 +62,10 @@ import { resolveRuptureAbsolutePath } from "./rupture-index.js";
 import { buildDashboardCompanyMap } from "./dashboard-company-map.js";
 import { sendCompanyFormInviteOnApproval } from "./company-invite-email.js";
 import {
+  getStudentDecisionEmailDraft,
+  sendStudentDecisionEmailWithBody,
+} from "./student-decision-email.js";
+import {
   createStaffUser,
   findStaffByEmail,
   listStaffUsers,
@@ -520,6 +524,26 @@ app.get("/api/submissions/:id", requireAdmin, async (req, res) => {
   res.json(sub);
 });
 
+app.get("/api/submissions/:id/email-draft", requireAdmin, async (req, res) => {
+  const decision = req.query.decision as string;
+  if (decision !== "changes_requested" && decision !== "rejected") {
+    res.status(400).json({ error: "decision doit être changes_requested ou rejected" });
+    return;
+  }
+  const sub = await loadSubmission(req.params.id);
+  if (!sub) {
+    res.status(404).json({ error: "Introuvable" });
+    return;
+  }
+  try {
+    const draft = await getStudentDecisionEmailDraft(pool, sub, decision);
+    res.json(draft);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Impossible de générer le modèle d’e-mail" });
+  }
+});
+
 app.post("/api/submissions", async (req, res) => {
   const body = req.body as {
     student: Student;
@@ -791,6 +815,14 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
     res.status(400).json({ error: "status invalide" });
     return;
   }
+  const emailBody = (req.body as { emailBody?: string }).emailBody?.trim() ?? "";
+  const commentText = comment?.trim() ?? emailBody;
+  if ((status === "changes_requested" || status === "rejected") && !emailBody) {
+    res.status(400).json({
+      error: "Le corps du message e-mail est obligatoire pour cette décision.",
+    });
+    return;
+  }
 
   const { rows: beforeRows } = await pool.query<{ status: string }>(
     `SELECT status::text AS status FROM careers.student_submission WHERE id = $1::uuid`,
@@ -809,7 +841,7 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
        reviewed_at = now(),
        updated_at = now()
      WHERE id = $3::uuid`,
-    [status, comment ?? null, req.params.id],
+    [status, emailBody || commentText || null, req.params.id],
   );
   const sub = await loadSubmission(req.params.id);
   if (!sub) {
@@ -817,9 +849,9 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
     return;
   }
 
-  let companyInviteEmail:
-    | { sent: boolean; error?: string; skippedReason?: string }
-    | undefined;
+  type EmailOutcome = { sent: boolean; error?: string; skippedReason?: string };
+  let companyInviteEmail: EmailOutcome | undefined;
+  let studentDecisionEmail: EmailOutcome | undefined;
 
   if (status === "approved" && previousStatus !== "approved") {
     try {
@@ -836,7 +868,25 @@ app.post("/api/submissions/:id/decision", requireAdmin, async (req, res) => {
     }
   }
 
-  res.json({ ...sub, companyInviteEmail });
+  if (
+    (status === "changes_requested" || status === "rejected") &&
+    previousStatus !== status
+  ) {
+    try {
+      const mail = await sendStudentDecisionEmailWithBody(pool, sub, status, emailBody);
+      if (mail.sent) {
+        studentDecisionEmail = { sent: true };
+      } else {
+        studentDecisionEmail = { sent: false, skippedReason: mail.reason };
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("[student-decision-email]", message);
+      studentDecisionEmail = { sent: false, error: message };
+    }
+  }
+
+  res.json({ ...sub, companyInviteEmail, studentDecisionEmail });
 });
 
 // ——— Companies ———

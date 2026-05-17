@@ -14,8 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { SubmissionEmailBodyField } from "@/components/SubmissionEmailBodyField";
 
 function internshipWeeksLabel(startIso: string, endIso: string): string {
   const a = new Date(startIso);
@@ -43,7 +42,7 @@ type Props = {
 export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
   const open = submissionId !== null;
   const qc = useQueryClient();
-  const [comment, setComment] = useState("");
+  const [emailBody, setEmailBody] = useState("");
 
   const q = useQuery({
     queryKey: ["submission-id", submissionId],
@@ -52,12 +51,15 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
   });
 
   useEffect(() => {
-    if (!open) setComment("");
+    if (!open) setEmailBody("");
   }, [open, submissionId]);
 
   const review = useMutation({
     mutationFn: (status: "approved" | "changes_requested" | "rejected") =>
-      reviewSubmission(submissionId!, { status, comment: comment.trim() || undefined }),
+      reviewSubmission(submissionId!, {
+        status,
+        emailBody: status === "approved" ? undefined : emailBody.trim(),
+      }),
     onSuccess: (s) => {
       toast.success(reviewDecisionToastMessage(s));
       qc.invalidateQueries({ queryKey: ["submission-id", submissionId] });
@@ -79,7 +81,7 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
         if (!next) onOpenChange(false);
       }}
     >
-      <DialogContent className="flex max-h-[min(90vh,900px)] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent className="flex max-h-[min(90vh,900px)] w-[calc(100vw-2rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <div className="overflow-y-auto px-6 pb-4 pt-6">
           <DialogHeader className="space-y-3 text-left">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -193,17 +195,14 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
                 </section>
               )}
 
-              <section className="space-y-2 border-t border-border pt-4">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Commentaire (obligatoire pour « Modifications » ou « Refus »)
-                </Label>
-                <Textarea
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ex. : merci de préciser les missions confiées."
+              {submissionId && (
+                <SubmissionEmailBodyField
+                  submissionId={submissionId}
+                  value={emailBody}
+                  onChange={setEmailBody}
+                  enabled={open}
                 />
-              </section>
+              )}
             </div>
           )}
         </div>
@@ -214,8 +213,8 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
               <Button
                 variant="destructive"
                 onClick={() => {
-                  if (!comment.trim()) {
-                    toast.error("Un commentaire est requis pour refuser.");
+                  if (!emailBody.trim()) {
+                    toast.error("Le corps du message e-mail est obligatoire.");
                     return;
                   }
                   review.mutate("rejected");
@@ -227,8 +226,8 @@ export function SubmissionReviewDialog({ submissionId, onOpenChange }: Props) {
               <Button
                 variant="outline"
                 onClick={() => {
-                  if (!comment.trim()) {
-                    toast.error("Un commentaire est requis pour demander des modifications.");
+                  if (!emailBody.trim()) {
+                    toast.error("Le corps du message e-mail est obligatoire.");
                     return;
                   }
                   review.mutate("changes_requested");
