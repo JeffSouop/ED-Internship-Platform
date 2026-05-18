@@ -22,7 +22,7 @@
 
 services:
   postgres:
-    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-postgres:${ED_IMAGE_TAG:-latest}
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/jeffsouop}/ed-internship-postgres:${ED_IMAGE_TAG:-latest}
     container_name: ed-internship-postgres
     restart: unless-stopped
     environment:
@@ -40,7 +40,7 @@ services:
       retries: 10
 
   api:
-    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-api:${ED_IMAGE_TAG:-latest}
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/jeffsouop}/ed-internship-api:${ED_IMAGE_TAG:-latest}
     container_name: ed-internship-api
     restart: unless-stopped
     depends_on:
@@ -61,7 +61,7 @@ services:
       - ${DOCUSIGN_KEY_PATH:-./secrets/docusign_private.key}:/run/secrets/docusign_private_key:ro
 
   ui:
-    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-ui:${ED_IMAGE_TAG:-latest}
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/jeffsouop}/ed-internship-ui:${ED_IMAGE_TAG:-latest}
     container_name: ed-internship-ui
     restart: unless-stopped
     depends_on:
