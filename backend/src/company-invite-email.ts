@@ -33,6 +33,11 @@ export function getCompanyFormUrl(): string {
   return `${getPublicAppUrl()}/company`;
 }
 
+/** Mot de passe formulaire public entreprise (aligné sur VITE_FORM_ACCESS_PASSWORD côté front). */
+export function getCompanyFormAccessPassword(): string {
+  return process.env.FORM_ACCESS_PASSWORD?.trim() || "ducasse2026";
+}
+
 function formatDateIso(iso: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const d = new Date(iso);
@@ -114,6 +119,7 @@ export function buildCompanyFormInviteEmail(submission: StudentSubmission): {
   const companyName = submission.companyName.trim();
   const studentId = submission.studentId.trim();
   const formUrl = getCompanyFormUrl();
+  const formPassword = getCompanyFormAccessPassword();
   const datesFr = dateRangeIso(submission);
   const datesEn = dateRangeEn(submission);
   const enrollFr = enrollmentPhraseFr(submission);
@@ -129,6 +135,8 @@ Afin d'éditer sa convention de stage, pourriez-vous remplir notre fiche de rens
 
 ${formUrl}
 
+Mot de passe d'accès au formulaire : ${formPassword}
+
 Nous vous remercions chaleureusement pour votre soutien et l'accompagnement de nos étudiants cette année.`;
 
   const enBody = `Dear Sir or Madam,
@@ -138,6 +146,8 @@ We are delighted to learn that you have accepted the internship at ${companyName
 In order to issue the internship agreement, kindly complete our information form by clicking on the link below:
 
 ${formUrl}
+
+Form access password: ${formPassword}
 
 We would like to express our sincere gratitude for your support and guidance to our students this year.`;
 
@@ -159,6 +169,7 @@ We would like to express our sincere gratitude for your support and guidance to 
 <p style="margin:16px 0">
   <a href="${escapeHtml(formUrl)}" style="color:#1e3a5f;font-weight:600">${escapeHtml(formUrl)}</a>
 </p>
+<p><strong>Mot de passe d'accès au formulaire :</strong> ${escapeHtml(formPassword)}</p>
 <p>
   Nous vous remercions chaleureusement pour votre soutien et l'accompagnement de nos étudiants cette année.
 </p>
@@ -177,6 +188,7 @@ ${signatureBlockHtml()}
 <p style="margin:16px 0">
   <a href="${escapeHtml(formUrl)}" style="color:#1e3a5f;font-weight:600">${escapeHtml(formUrl)}</a>
 </p>
+<p><strong>Form access password:</strong> ${escapeHtml(formPassword)}</p>
 <p>
   We would like to express our sincere gratitude for your support and guidance to our students this year.
 </p>
