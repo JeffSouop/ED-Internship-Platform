@@ -1,0 +1,32 @@
+# API + modèles Word (build depuis la racine du dépôt).
+FROM node:22-alpine AS build
+
+WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci
+
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+RUN npm run build
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/backend/dist ./dist
+COPY templates /app/templates
+
+ENV CONVENTION_TEMPLATE_PATH=/app/templates/Modele2025ConventiondestageFPADv0.11.docx
+ENV CONVENTION_OUTPUT_DIR=/data/convention
+ENV ATTESTATION_TEMPLATE_PATH=/app/templates/Modele2024Attestationdestage.docx
+ENV ATTESTATION_OUTPUT_DIR=/data/attestation
+ENV RUPTURE_TEMPLATE_PATH=/app/templates/ModeleRupturedeconvention.docx
+ENV RUPTURE_OUTPUT_DIR=/data/rupture
+ENV DOCUSIGN_PRIVATE_KEY_PATH=/run/secrets/docusign_private_key
+
+EXPOSE 4000
+CMD ["node", "dist/index.js"]

@@ -1,0 +1,76 @@
+# =============================================================================
+# École Ducasse — Stages & Carrière
+# Distribution « images Docker » (sans cloner le dépôt), comme TaTi (tati.blog).
+#
+# Images : GitHub Container Registry (GHCR), publiées par .github/workflows/publish-images.yml
+#   ghcr.io/<propriétaire-github-minuscules>/ed-internship-{postgres,api,ui}:<tag>
+#
+# Sur le serveur (2 fichiers + secrets) :
+#   curl -fsSL -o docker-compose.yml \
+#     https://raw.githubusercontent.com/VOTRE_ORG/VOTRE_REPO/main/docker-compose.dist.yml
+#   curl -fsSL -o .env.example \
+#     https://raw.githubusercontent.com/VOTRE_ORG/VOTRE_REPO/main/.env.dist.example
+#   cp .env.example .env && nano .env
+#   mkdir -p secrets && cp /chemin/private.key secrets/docusign_private.key
+#   docker login ghcr.io
+#   docker compose pull && docker compose up -d
+# =============================================================================
+
+services:
+  postgres:
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-postgres:${ED_IMAGE_TAG:-latest}
+    container_name: ed-internship-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ducasse_careers}
+      POSTGRES_USER: ${POSTGRES_USER:-ducasse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ducasse} -d ${POSTGRES_DB:-ducasse_careers}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-api:${ED_IMAGE_TAG:-latest}
+    container_name: ed-internship-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ducasse}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ducasse_careers}
+      PORT: "4000"
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - geocode_data:/app/data
+      - convention_data:/data/convention
+      - attestation_data:/data/attestation
+      - rupture_data:/data/rupture
+      - ${DOCUSIGN_KEY_PATH:-./secrets/docusign_private.key}:/run/secrets/docusign_private_key:ro
+
+  ui:
+    image: ${ED_IMAGE_REGISTRY:-ghcr.io/talent-tally}/ed-internship-ui:${ED_IMAGE_TAG:-latest}
+    container_name: ed-internship-ui
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      HOME: /tmp
+      WRANGLER_SEND_METRICS: "false"
+
+volumes:
+  pgdata:
+  geocode_data:
+  convention_data:
+  attestation_data:
+  rupture_data:
