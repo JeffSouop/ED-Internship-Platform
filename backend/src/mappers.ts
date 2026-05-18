@@ -28,6 +28,11 @@ export function campusLabelToCode(label: string): string {
 }
 
 export function programmeLabelToCode(label: string): string {
+  const u = label.trim().toUpperCase();
+  if (u.startsWith("BFPA")) return "BACH-PAS";
+  if (u.startsWith("BCA")) return "BACH-CUL";
+  if (u.startsWith("DC-") || u.startsWith("CAD-")) return "BACH-CUL";
+
   const l = label.toLowerCase();
   if (l.includes("pastry") || l.includes("pâtisserie")) return "BACH-PAS";
   if (l.includes("mba")) return "MBA-CUL";

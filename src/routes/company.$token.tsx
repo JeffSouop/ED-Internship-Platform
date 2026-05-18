@@ -8,6 +8,7 @@ import { getToken } from "@/services/tokens";
 import { getCompany, searchCompanies, upsertCompany } from "@/services/companies";
 import { submitDeclaration } from "@/services/declarations";
 import { currentIntake } from "@/lib/intake";
+import { getStudentIdValidationError, normalizeStudentId } from "@/lib/student-id";
 import { BENEFIT_OPTIONS, benefitLabel } from "@/lib/partner-form-benefits";
 import { type Company, type LinkToken } from "@/lib/types";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -186,7 +187,12 @@ function collectPartnerStep1Issues(f: PartnerForm): PartnerFieldIssue[] {
 
 function collectPartnerStep2Issues(f: PartnerForm, benefits: string[]): PartnerFieldIssue[] {
   const issues: PartnerFieldIssue[] = [];
-  if (!f.studentId.trim()) issues.push({ id: "partner-studentId", message: "Indiquez l’identifiant étudiant (sans espaces)." });
+  if (!f.studentId.trim()) {
+    issues.push({ id: "partner-studentId", message: "Indiquez l’identifiant étudiant (sans espaces)." });
+  } else {
+    const studentIdErr = getStudentIdValidationError(f.studentId);
+    if (studentIdErr) issues.push({ id: "partner-studentId", message: studentIdErr });
+  }
   if (!f.firstName.trim()) issues.push({ id: "partner-firstName", message: "Indiquez le prénom du stagiaire." });
   if (!f.lastName.trim()) issues.push({ id: "partner-lastName", message: "Indiquez le nom du stagiaire." });
   if (!f.internshipType) issues.push({ id: "partner-internshipType", message: "Choisissez le type de stage (Culinary / Pastry)." });
@@ -334,7 +340,7 @@ function PartnerRegistrationForm({
         intake: currentIntake(),
         interns: [
           {
-            studentId: form.studentId.trim(),
+            studentId: normalizeStudentId(form.studentId),
             firstName: form.firstName.trim(),
             lastName: form.lastName.trim().toUpperCase(),
             internshipType: form.internshipType || undefined,
@@ -698,7 +704,14 @@ function PartnerRegistrationForm({
             au dossier de l&apos;étudiant (même numéro que sur la convention étudiant). — The student ID is
             specified in the email we sent you; it joins your declaration to the student record.
           </p>
-          <Input value={form.studentId} onChange={(e) => patch("studentId", e.target.value)} placeholder="Entrez votre réponse" />
+          <Input
+            value={form.studentId}
+            onChange={(e) => patch("studentId", e.target.value)}
+            inputMode="numeric"
+            maxLength={7}
+            autoComplete="off"
+            placeholder="1234567"
+          />
         </Question>
 
         <Question fieldId="partner-firstName" n={2} required titleEn="First name of the intern" titleFr="Prénom du stagiaire">

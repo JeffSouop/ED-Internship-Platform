@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { getStudent, getSubmissionByStudent, upsertStudentSubmission } from "@/services/students";
 import { INTAKES, type Intake } from "@/lib/types";
+import { getStudentIdValidationError, normalizeStudentId } from "@/lib/student-id";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,16 @@ export type StudentConventionFormProps = {
   redirectAfterSubmit?: boolean;
 };
 
-/** Libellés alignés sur `backend/db/schema.sql` (programme.name) pour `programmeLabelToCode`. */
+/** Codes programme / niveau de classe (saisie formulaire + `programme_input_label`). */
 const PROGRAMMES = [
-  "Bachelor in Culinary Arts",
-  "Bachelor in French Pastry Arts",
-  "MBA in Culinary Arts Management",
+  "BCA1-0226",
+  "BCA2-0225",
+  "BCA3-0224",
+  "BFPA1-0226",
+  "BFPA2-0225",
+  "BFPA3-0224",
+  "DC-0226",
+  "CAD-0226",
 ] as const;
 
 /** « Paris » → PARIS ; libellé contenant « yss » → YSSI (voir campusLabelToCode côté API). */
@@ -204,7 +210,13 @@ export function StudentConventionForm({
     [student, submission, prefillStudentId],
   );
 
-  const { register, handleSubmit, reset, control } = form;
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors },
+  } = form;
 
   useEffect(() => {
     reset(initial);
@@ -219,7 +231,7 @@ export function StudentConventionForm({
     mutationFn: (values: FormValues) =>
       upsertStudentSubmission({
         student: {
-          id: values.studentId,
+          id: normalizeStudentId(values.studentId),
           firstName: values.firstName,
           lastName: values.lastName,
           email: values.email,
@@ -449,7 +461,19 @@ export function StudentConventionForm({
               }
               required
             >
-              <Input {...register("studentId", { required: REQUIRED_FIELD })} disabled={!editable} />
+              <Input
+                {...register("studentId", {
+                  required: REQUIRED_FIELD,
+                  validate: (v) => getStudentIdValidationError(v) ?? true,
+                })}
+                inputMode="numeric"
+                maxLength={7}
+                autoComplete="off"
+                disabled={!editable}
+              />
+              {errors.studentId && (
+                <p className="mt-1 text-xs text-destructive">{errors.studentId.message}</p>
+              )}
             </Question>
 
             <Question anchor="firstName" n={7} title={<>First Name — Prénom</>} required>

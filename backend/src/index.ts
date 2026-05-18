@@ -32,6 +32,7 @@ import {
   programmeLabelToCode,
 } from "./mappers.js";
 import { insertDeclaredInternWithFullIntake } from "./partner-snapshot.js";
+import { normalizeStudentId, validateStudentId } from "./student-id.js";
 import {
   ConventionGenerateError,
   conventionExistsForStudent,
@@ -571,10 +572,15 @@ app.post("/api/submissions", async (req, res) => {
     res.status(400).json({ error: "student.id requis" });
     return;
   }
-  const studentIdPivot = String(body.student.id).trim();
+  const studentIdPivot = normalizeStudentId(String(body.student.id ?? ""));
   const emailStore = String(body.student.email ?? "").trim();
   if (!studentIdPivot || !emailStore) {
     res.status(400).json({ error: "Numéro étudiant et email requis" });
+    return;
+  }
+  const studentIdFormatError = validateStudentId(studentIdPivot);
+  if (studentIdFormatError) {
+    res.status(400).json({ error: studentIdFormatError });
     return;
   }
   const emailLower = emailStore.toLowerCase();
@@ -1237,6 +1243,12 @@ app.post("/api/declarations", async (req, res) => {
       : [];
     const partnerFormExtras = (body.partnerFormExtras ?? {}) as Record<string, unknown>;
     for (const intern of body.interns) {
+      const internStudentIdError = validateStudentId(intern.studentId ?? "");
+      if (internStudentIdError) {
+        await client.query("ROLLBACK");
+        res.status(400).json({ error: internStudentIdError });
+        return;
+      }
       await insertDeclaredInternWithFullIntake(client, {
         declarationId: declId,
         companyId: body.companyId,
