@@ -14,6 +14,12 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    build: {
+      sourcemap: false,
+      rollupOptions: {
+        maxParallelFileOps: 2,
+      },
+    },
     server: {
       // Même principe que Docker : le navigateur ne tape que le front ; /api va au backend unique.
       proxy: {

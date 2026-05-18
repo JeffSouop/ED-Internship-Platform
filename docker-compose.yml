@@ -17,7 +17,9 @@
 # Prérequis :
 #   - backend/.env (Brevo, DocuSign, APP_PUBLIC_URL, …) — chargé par le service api
 #   - private.key à la racine (DocuSign) — sinon commentez le volume private.key ci-dessous
-#   - Rebuild après changement du mot de passe formulaire : docker compose up -d --build ui api
+#   - Rebuild stack (UI compilée sur le Mac, pas dans Docker — évite OOM SSR) :
+#       npm run compose:up
+#     ou après changement front seul : npm run build && docker compose up -d --build ui
 #   - Import Excel (entreprises) : ./deploy/import-companies.sh  (après rebuild API)
 
 services:
@@ -77,11 +79,8 @@ services:
   ui:
     build:
       context: .
-      dockerfile: docker/Dockerfile.ui
-      args:
-        # Même mot de passe que FORM_ACCESS_PASSWORD (backend/.env) — défaut ducasse2026
-        VITE_FORM_ACCESS_PASSWORD: ${VITE_FORM_ACCESS_PASSWORD:-ducasse2026}
-        VITE_API_URL: ""
+      dockerfile: docker/Dockerfile.ui.from-dist
+      # dist/ produit par « npm run build » sur l’hôte (voir npm run compose:up)
     container_name: ed-internship-ui
     restart: unless-stopped
     ports:
