@@ -1,24 +1,32 @@
 /**
- * Dev local (tsx). En Docker / serveur : node dist/import-companies-cli.js
+ * Import entreprises (image Docker API, sans code source sur le serveur).
+ *   node dist/import-companies-cli.js /data/companies.xlsx
  */
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Pool } from "pg";
 
-import { importCompaniesFromXlsx } from "../src/import-companies-xlsx.js";
+import { importCompaniesFromXlsx } from "./import-companies-xlsx.js";
+
+loadEnv();
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
-  console.error("DATABASE_URL manquant (backend/.env)");
+  console.error("DATABASE_URL manquant");
   process.exit(1);
 }
 
-const defaultXlsx = resolve(process.cwd(), "..", "COMPANY DATABASE.xlsx");
-const xlsxPath = resolve(process.cwd(), process.argv[2] ?? defaultXlsx);
+const candidates = [
+  process.argv[2]?.trim(),
+  process.env.COMPANIES_XLSX_PATH?.trim(),
+  "/data/companies.xlsx",
+  resolve(process.cwd(), "COMPANY DATABASE.xlsx"),
+].filter((p): p is string => Boolean(p));
 
-if (!existsSync(xlsxPath)) {
-  console.error(`Fichier introuvable : ${xlsxPath}`);
+const xlsxPath = candidates.find((p) => existsSync(p));
+if (!xlsxPath) {
+  console.error("Fichier Excel introuvable. Montez-le sur /data/companies.xlsx");
   process.exit(1);
 }
 

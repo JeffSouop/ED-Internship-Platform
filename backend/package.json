@@ -8,7 +8,9 @@
     "build": "tsc",
     "seed:admin": "tsx scripts/seed-admin-user.ts",
     "import:companies": "tsx scripts/import-companies-xlsx.ts",
-    "geocode:companies": "tsx scripts/geocode-companies.ts"
+    "import:companies:prod": "node dist/import-companies-cli.js",
+    "geocode:companies": "tsx scripts/geocode-companies.ts",
+    "geocode:companies:prod": "node dist/geocode-companies-cli.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

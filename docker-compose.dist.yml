@@ -14,6 +14,10 @@
 #   mkdir -p secrets && cp /chemin/private.key secrets/docusign_private.key
 #   docker login ghcr.io
 #   docker compose pull && docker compose up -d
+#
+# Données entreprises (Excel, pas dans l’image) :
+#   mkdir -p data && cp "/chemin/COMPANY DATABASE.xlsx" data/companies.xlsx
+#   chmod +x import-companies.sh && ./import-companies.sh
 # =============================================================================
 
 services:
