@@ -13,6 +13,11 @@
 #
 # Les futurs services externes (webhooks, autres APIs) se brancheraient sur « api » par variables
 # d’environnement — comme les MCP sont appelés uniquement par le backend TaTi, pas par le navigateur.
+#
+# Prérequis :
+#   - backend/.env (Brevo, DocuSign, APP_PUBLIC_URL, …) — chargé par le service api
+#   - private.key à la racine (DocuSign) — sinon commentez le volume private.key ci-dessous
+#   - Rebuild après changement du mot de passe formulaire : docker compose up -d --build ui api
 
 services:
   postgres:
@@ -41,15 +46,29 @@ services:
       dockerfile: Dockerfile
     container_name: ed-internship-api
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
+      # Réseau Docker (remplace localhost:5433 de backend/.env)
       DATABASE_URL: postgresql://ducasse:ducasse_local_dev@postgres:5432/ducasse_careers
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-local-dev-secret}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080,http://localhost:5173}
       PORT: "4000"
+      # Fichiers projet montés sous /workspace (templates, conventions, clé DocuSign)
+      CONVENTION_TEMPLATE_PATH: /workspace/templates/Modele2025ConventiondestageFPADv0.11.docx
+      CONVENTION_OUTPUT_DIR: /workspace/convention
+      ATTESTATION_TEMPLATE_PATH: /workspace/templates/Modele2024Attestationdestage.docx
+      ATTESTATION_OUTPUT_DIR: /workspace/attestation
+      RUPTURE_TEMPLATE_PATH: /workspace/templates/ModeleRupturedeconvention.docx
+      RUPTURE_OUTPUT_DIR: /workspace/rupture
+      DOCUSIGN_PRIVATE_KEY_PATH: /workspace/private.key
     ports:
       - "4000:4000"
     volumes:
       - ./backend/data:/app/data
+      - ./templates:/workspace/templates:ro
+      - ./convention:/workspace/convention
+      - ./attestation:/workspace/attestation
+      - ./rupture:/workspace/rupture
+      - ./private.key:/workspace/private.key:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,6 +77,10 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.ui
+      args:
+        # Même mot de passe que FORM_ACCESS_PASSWORD (backend/.env) — défaut ducasse2026
+        VITE_FORM_ACCESS_PASSWORD: ${VITE_FORM_ACCESS_PASSWORD:-ducasse2026}
+        VITE_API_URL: ""
     container_name: ed-internship-ui
     restart: unless-stopped
     ports:

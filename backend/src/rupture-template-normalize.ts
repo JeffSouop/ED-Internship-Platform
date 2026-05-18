@@ -83,7 +83,7 @@ export function normalizeRuptureDocumentXml(xml: string): string {
 
     const instrStart = im.index ?? 0;
     const instrEnd = instrStart + im[0].length;
-    const begin = lastMatchIndex(BEGIN_RE, xml, instrStart);
+    let begin = lastMatchIndex(BEGIN_RE, xml, instrStart);
     if (begin < 0) continue;
 
     const endM = END_RE.exec(xml.slice(instrEnd));
