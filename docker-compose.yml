@@ -55,22 +55,19 @@ services:
       # Réseau Docker (remplace localhost:5433 de backend/.env)
       DATABASE_URL: postgresql://ducasse:ducasse_local_dev@postgres:5432/ducasse_careers
       PORT: "4000"
-      # Fichiers projet montés sous /workspace (templates, conventions, clé DocuSign)
+      # Modèles / clé en lecture seule ; documents générés sous /app/data (évite errno -35 Mac+iCloud sur ./convention)
       CONVENTION_TEMPLATE_PATH: /workspace/templates/Modele2025ConventiondestageFPADv0.11.docx
-      CONVENTION_OUTPUT_DIR: /workspace/convention
+      CONVENTION_OUTPUT_DIR: /app/data/convention
       ATTESTATION_TEMPLATE_PATH: /workspace/templates/Modele2024Attestationdestage.docx
-      ATTESTATION_OUTPUT_DIR: /workspace/attestation
+      ATTESTATION_OUTPUT_DIR: /app/data/attestation
       RUPTURE_TEMPLATE_PATH: /workspace/templates/ModeleRupturedeconvention.docx
-      RUPTURE_OUTPUT_DIR: /workspace/rupture
+      RUPTURE_OUTPUT_DIR: /app/data/rupture
       DOCUSIGN_PRIVATE_KEY_PATH: /workspace/private.key
     ports:
       - "4000:4000"
     volumes:
       - ./backend/data:/app/data
       - ./templates:/workspace/templates:ro
-      - ./convention:/workspace/convention
-      - ./attestation:/workspace/attestation
-      - ./rupture:/workspace/rupture
       - ./private.key:/workspace/private.key:ro
     depends_on:
       postgres:

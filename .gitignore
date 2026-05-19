@@ -21,16 +21,19 @@ private.key
 data/company-geocode-cache.json
 backend/data/company-geocode-cache.json
 
-# Conventions Word générées (dossier convention/ à la racine)
+# Conventions Word générées (racine legacy + Docker local backend/data)
 convention/*.docx
 convention/.conventions-index.json
 convention/.convention-docusign.json
+backend/data/convention/
+backend/data/attestation/
+backend/data/rupture/
 
-# Attestations Word générées (dossier attestation/ à la racine)
+# Attestations Word (racine legacy)
 attestation/*.docx
 attestation/.attestations-index.json
 
-# Ruptures de stage Word générées (dossier rupture/ à la racine)
+# Ruptures (racine legacy)
 rupture/*.docx
 rupture/.ruptures-index.json
 

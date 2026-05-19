@@ -1680,7 +1680,11 @@ app.post("/api/admin/conventions/generate", requireAdmin, async (req, res) => {
       return;
     }
     console.error(e);
-    res.status(500).json({ error: "Erreur lors de la génération de la convention" });
+    const detail = e instanceof Error ? e.message : String(e);
+    res.status(500).json({
+      error: "Erreur lors de la génération de la convention",
+      ...(process.env.NODE_ENV !== "production" && detail ? { detail } : {}),
+    });
   }
 });
 
