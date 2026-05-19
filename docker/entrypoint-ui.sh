@@ -1,5 +1,15 @@
 #!/bin/sh
 set -e
+
+if [ ! -f /app/dist/server/wrangler.json ]; then
+  echo "ERREUR: /app/dist/server absent — rebuild UI: docker compose build --no-cache ui" >&2
+  exit 1
+fi
+
+if [ -d /app/dist/server/assets ] && [ -d /app/dist/client/assets ]; then
+  cp -f /app/dist/server/assets/*.css /app/dist/client/assets/ 2>/dev/null || true
+fi
+
 cd /app/dist/server
 
 /app/node_modules/.bin/wrangler dev index.js \

@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  Briefcase,
   Building2,
   CheckCircle2,
   GraduationCap,
@@ -58,12 +59,20 @@ function Index() {
         </div>
       )}
       <SiteHeader>
-        <Link
-          to="/admin"
-          className="rounded-full border border-primary-foreground/25 bg-primary-foreground/15 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-foreground/25"
-        >
-          Espace équipe carrière →
-        </Link>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <Link
+            to="/espace-entreprise"
+            className="rounded-full border border-primary-foreground/25 bg-primary-foreground/15 px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-foreground/25"
+          >
+            Espace entreprise →
+          </Link>
+          <Link
+            to="/admin"
+            className="rounded-full border border-primary-foreground/25 bg-primary-foreground/15 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-foreground/25"
+          >
+            Espace équipe carrière →
+          </Link>
+        </div>
       </SiteHeader>
 
       {/* Hero */}
@@ -169,7 +178,7 @@ function Index() {
             </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <AccessCard
               image={CARD_STUDENT_IMAGE}
               imageAlt="Étudiant en formation cuisine"
@@ -198,6 +207,15 @@ function Index() {
               body="Tableau de bord, validations, conventions générées, attestations et suivi des signatures."
               cta={{ to: "/admin", label: "Administration" }}
               mutedImage
+            />
+            <AccessCard
+              image={CARD_COMPANY_IMAGE}
+              imageAlt="Salle de restaurant — offres de stage"
+              imagePosition="object-cover object-center"
+              icon={<Briefcase className="h-5 w-5" />}
+              title="Offre de stage"
+              body="Parcourez les offres de stage proposées par nos partenaires gastronomiques. Espace en cours de configuration."
+              cta={{ to: "/job-board", label: "Voir les offres de stage" }}
             />
           </div>
         </section>

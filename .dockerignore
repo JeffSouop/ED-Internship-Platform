@@ -2,7 +2,7 @@
 .github
 node_modules
 backend/node_modules
-# dist/ : conservé pour docker/Dockerfile.ui.from-dist (build UI sur l’hôte)
+dist
 .output
 .tanstack
 .vinxi

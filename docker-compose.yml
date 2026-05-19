@@ -17,12 +17,17 @@
 # Prérequis :
 #   - backend/.env (Brevo, DocuSign, APP_PUBLIC_URL, …) — chargé par le service api
 #   - private.key à la racine (DocuSign) — sinon commentez le volume private.key ci-dessous
-#   - Rebuild stack (UI compilée sur le Mac, pas dans Docker — évite OOM SSR) :
-#       npm run compose:up
-#     ou après changement front seul : npm run build && docker compose up -d --build ui
+#   - Démarrer / reconstruire toute la stack (build UI dans Docker) :
+#       docker compose up -d --build
+#     ou : ./deploy/up.sh
+#   - Reconstruire uniquement le front :
+#       docker compose up -d --build ui
+#     ou : ./deploy/ui.sh
 #   - Import Excel (entreprises) à la racine : COMPANY DATABASE.xlsx (gitignoré)
-#       npm run import:companies
+#       ./deploy/import-companies.sh
 #     ou : docker compose exec api node dist/import-companies-cli.js
+#
+#   Allouer ≥ 6 Go de RAM à Docker/Colima pour le build SSR de l’UI.
 
 services:
   postgres:
@@ -79,8 +84,11 @@ services:
   ui:
     build:
       context: .
-      dockerfile: docker/Dockerfile.ui.from-dist
-      # dist/ produit par « npm run build » sur l’hôte (voir npm run compose:up)
+      dockerfile: docker/Dockerfile.ui
+      args:
+        NODE_MAX_OLD_SPACE_SIZE: "4096"
+        VITE_FORM_ACCESS_PASSWORD: ${VITE_FORM_ACCESS_PASSWORD:-ducasse2026}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: ed-internship-ui
     restart: unless-stopped
     ports:

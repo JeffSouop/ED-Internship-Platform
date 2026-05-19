@@ -13,6 +13,8 @@ import { Route as StudentRouteImport } from './routes/student'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as JobBoardRouteImport } from './routes/job-board'
+import { Route as EspaceEntrepriseRouteImport } from './routes/espace-entreprise'
 import { Route as CompanyIndexRouteImport } from './routes/company.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as StudentMerciRouteImport } from './routes/student.merci'
@@ -53,6 +55,16 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobBoardRoute = JobBoardRouteImport.update({
+  id: '/job-board',
+  path: '/job-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EspaceEntrepriseRoute = EspaceEntrepriseRouteImport.update({
+  id: '/espace-entreprise',
+  path: '/espace-entreprise',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompanyIndexRoute = CompanyIndexRouteImport.update({
@@ -163,6 +175,8 @@ const AdminCompaniesIdRoute = AdminCompaniesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/job-board': typeof JobBoardRoute
+  '/espace-entreprise': typeof EspaceEntrepriseRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
   '/student': typeof StudentRouteWithChildren
@@ -190,6 +204,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/job-board': typeof JobBoardRoute
+  '/espace-entreprise': typeof EspaceEntrepriseRoute
   '/student': typeof StudentRouteWithChildren
   '/admin/account': typeof AdminAccountRoute
   '/admin/attestation': typeof AdminAttestationRoute
@@ -215,6 +231,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/job-board': typeof JobBoardRoute
+  '/espace-entreprise': typeof EspaceEntrepriseRoute
   '/admin': typeof AdminRouteWithChildren
   '/company': typeof CompanyRouteWithChildren
   '/student': typeof StudentRouteWithChildren
@@ -244,6 +262,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/job-board'
+    | '/espace-entreprise'
     | '/admin'
     | '/company'
     | '/student'
@@ -271,6 +291,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/job-board'
+    | '/espace-entreprise'
     | '/student'
     | '/admin/account'
     | '/admin/attestation'
@@ -295,6 +317,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/job-board'
+    | '/espace-entreprise'
     | '/admin'
     | '/company'
     | '/student'
@@ -323,6 +347,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  JobBoardRoute: typeof JobBoardRoute
+  EspaceEntrepriseRoute: typeof EspaceEntrepriseRoute
   AdminRoute: typeof AdminRouteWithChildren
   CompanyRoute: typeof CompanyRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
@@ -356,6 +382,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/job-board': {
+      id: '/job-board'
+      path: '/job-board'
+      fullPath: '/job-board'
+      preLoaderRoute: typeof JobBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/espace-entreprise': {
+      id: '/espace-entreprise'
+      path: '/espace-entreprise'
+      fullPath: '/espace-entreprise'
+      preLoaderRoute: typeof EspaceEntrepriseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/company/': {
@@ -597,6 +637,8 @@ const StudentRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  JobBoardRoute: JobBoardRoute,
+  EspaceEntrepriseRoute: EspaceEntrepriseRoute,
   AdminRoute: AdminRouteWithChildren,
   CompanyRoute: CompanyRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
