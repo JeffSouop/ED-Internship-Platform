@@ -1,6 +1,7 @@
 /**
  * Import entreprises (image Docker API, sans code source sur le serveur).
- *   node dist/import-companies-cli.js /data/companies.xlsx
+ * Fichier par défaut : COMPANY DATABASE.xlsx à la racine du dépôt
+ *   (monté sur /workspace/COMPANY DATABASE.xlsx dans docker-compose.yml).
  */
 import { config as loadEnv } from "dotenv";
 import { existsSync } from "node:fs";
@@ -17,16 +18,27 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+const argPath = process.argv.slice(2).join(" ").trim();
+
+const ROOT_XLSX = "/workspace/COMPANY DATABASE.xlsx";
+
 const candidates = [
-  process.argv[2]?.trim(),
+  argPath || undefined,
   process.env.COMPANIES_XLSX_PATH?.trim(),
+  ROOT_XLSX,
+  "/app/data/companies.xlsx",
   "/data/companies.xlsx",
   resolve(process.cwd(), "COMPANY DATABASE.xlsx"),
+  resolve(process.cwd(), "../COMPANY DATABASE.xlsx"),
 ].filter((p): p is string => Boolean(p));
 
 const xlsxPath = candidates.find((p) => existsSync(p));
 if (!xlsxPath) {
-  console.error("Fichier Excel introuvable. Montez-le sur /data/companies.xlsx");
+  console.error(
+    "Fichier Excel introuvable.\n" +
+      "  • Placez COMPANY DATABASE.xlsx à la racine du projet, puis : docker compose up -d api\n" +
+      "  • Import : npm run import:companies   (ou docker compose exec api node dist/import-companies-cli.js)",
+  );
   process.exit(1);
 }
 

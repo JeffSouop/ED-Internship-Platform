@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # Import COMPANY DATABASE.xlsx via l’image API (serveur sans code source).
 #
-# Prérequis : stack déjà up (docker compose up -d), fichier Excel dans ./data/
-#   cp "/chemin/COMPANY DATABASE.xlsx" ./data/companies.xlsx
+# Prérequis : stack déjà up, COMPANY DATABASE.xlsx à la racine du dépôt (ou chemin en argument).
 #
 # Usage :
-#   chmod +x import-companies.sh
-#   ./import-companies.sh
-#   ./import-companies.sh ./data/mon-fichier.xlsx
+#   chmod +x deploy/import-companies.sh
+#   ./deploy/import-companies.sh
 
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-XLSX="$(cd "$(dirname "${1:-$DIR/data/companies.xlsx}")" && pwd)/$(basename "${1:-$DIR/data/companies.xlsx}")"
-COMPOSE="${COMPOSE_FILE:-$DIR/docker-compose.yml}"
-if [[ ! -f "$COMPOSE" && -f "$DIR/docker-compose.dist.yml" ]]; then
-  COMPOSE="$DIR/docker-compose.dist.yml"
+ROOT="$(cd "$DIR/.." && pwd)"
+DEFAULT_XLSX="$ROOT/COMPANY DATABASE.xlsx"
+XLSX_INPUT="${1:-$DEFAULT_XLSX}"
+XLSX="$(cd "$(dirname "$XLSX_INPUT")" && pwd)/$(basename "$XLSX_INPUT")"
+COMPOSE="${COMPOSE_FILE:-$ROOT/docker-compose.yml}"
+if [[ ! -f "$COMPOSE" && -f "$ROOT/docker-compose.dist.yml" ]]; then
+  COMPOSE="$ROOT/docker-compose.dist.yml"
 fi
 
 if [[ ! -f "$XLSX" ]]; then
   echo "Fichier introuvable : $XLSX"
-  echo "Copiez l’Excel : cp \"COMPANY DATABASE.xlsx\" $DIR/data/companies.xlsx"
+  echo "Placez COMPANY DATABASE.xlsx à la racine : $DEFAULT_XLSX"
   exit 1
 fi
 
 echo "→ Import entreprises…"
-docker compose -f "$COMPOSE" run --rm \
-  -v "$XLSX:/data/companies.xlsx:ro" \
-  api node dist/import-companies-cli.js /data/companies.xlsx
+docker compose -f "$COMPOSE" exec api node dist/import-companies-cli.js "/workspace/COMPANY DATABASE.xlsx"
 
 echo ""
 echo "→ Géocodage (carte, ~1 entreprise/seconde, peut être long)…"

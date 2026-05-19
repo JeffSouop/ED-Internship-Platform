@@ -20,7 +20,9 @@
 #   - Rebuild stack (UI compilée sur le Mac, pas dans Docker — évite OOM SSR) :
 #       npm run compose:up
 #     ou après changement front seul : npm run build && docker compose up -d --build ui
-#   - Import Excel (entreprises) : ./deploy/import-companies.sh  (après rebuild API)
+#   - Import Excel (entreprises) à la racine : COMPANY DATABASE.xlsx (gitignoré)
+#       npm run import:companies
+#     ou : docker compose exec api node dist/import-companies-cli.js
 
 services:
   postgres:
@@ -68,6 +70,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./templates:/workspace/templates:ro
+      - "./COMPANY DATABASE.xlsx:/workspace/COMPANY DATABASE.xlsx:ro"
       - ./private.key:/workspace/private.key:ro
     depends_on:
       postgres:

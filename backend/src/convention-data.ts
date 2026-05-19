@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type pg from "pg";
 
 import { conventionBenefitPlaceholders, extractBenefitIds } from "./convention-benefits.js";
+import { resolveCompanyLegalAndTrade } from "./company-display.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -327,10 +328,15 @@ export function buildConventionTemplateData(row: Record<string, unknown>): Recor
     str(r.st_email) ||
     "";
 
+  const coResolved = resolveCompanyLegalAndTrade(
+    str(r.co_name) || null,
+    str(r.co_trade_name) || null,
+  );
+
   return {
     Nom_entreprise:
-      str(r.company_legal_name) || str(r.co_name) || str(r.ss_company_name) || "",
-    Nom_commercial: str(r.company_trade_name) || str(r.co_trade_name) || "",
+      str(r.company_legal_name) || coResolved.legal || str(r.ss_company_name) || "",
+    Nom_commercial: str(r.company_trade_name) || coResolved.trade || "",
     Nature_de_lactivite: str(r.company_business_activity) || str(r.co_sector) || "",
     Representee_par: str(r.hr_representative_name) || str(r.cct_full_name) || "",
     En_qualite_de: str(r.hr_representative_title) || str(r.cct_role) || "",
