@@ -7,6 +7,7 @@
     "start": "node --import tsx src/index.ts",
     "build": "tsc",
     "seed:admin": "tsx scripts/seed-admin-user.ts",
+    "seed:company-users": "tsx scripts/seed-company-users.ts",
     "import:companies": "tsx scripts/import-companies-xlsx.ts",
     "import:companies:prod": "node dist/import-companies-cli.js",
     "geocode:companies": "tsx scripts/geocode-companies.ts",

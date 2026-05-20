@@ -214,7 +214,7 @@ function Index() {
               imagePosition="object-cover object-center"
               icon={<Briefcase className="h-5 w-5" />}
               title="Offre de stage"
-              body="Parcourez les offres de stage proposées par nos partenaires gastronomiques. Espace en cours de configuration."
+              body="Parcourez les offres de stage et d'emploi publiées par nos partenaires gastronomiques."
               cta={{ to: "/job-board", label: "Voir les offres de stage" }}
             />
           </div>

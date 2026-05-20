@@ -443,6 +443,43 @@ CREATE TABLE staff_user (
     last_login_at TIMESTAMPTZ
 );
 
+-- Comptes entreprise (espace partenaire — login e-mail RH)
+CREATE TABLE company_user (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id    UUID NOT NULL REFERENCES company(id) ON DELETE CASCADE,
+    email         TEXT NOT NULL UNIQUE,
+    contact_name  TEXT NOT NULL DEFAULT '',
+    password_hash TEXT NOT NULL,
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_login_at TIMESTAMPTZ,
+    UNIQUE (company_id)
+);
+
+CREATE INDEX idx_company_user_company_id ON company_user(company_id);
+CREATE INDEX idx_company_user_email_lower ON company_user(lower(email));
+
+-- Offres de stage / emploi publiées par les entreprises (portail partenaire)
+CREATE TABLE internship_offer (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id       UUID NOT NULL REFERENCES company(id) ON DELETE CASCADE,
+    title            TEXT NOT NULL,
+    description      TEXT NOT NULL,
+    offer_type       TEXT NOT NULL DEFAULT 'stage'
+        CHECK (offer_type IN ('stage', 'alternance', 'emploi', 'vie')),
+    location         TEXT,
+    contract_label   TEXT,
+    duration         TEXT,
+    start_date       DATE,
+    contact_email    TEXT,
+    published_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by_email TEXT
+);
+
+CREATE INDEX idx_internship_offer_company_id ON internship_offer(company_id);
+CREATE INDEX idx_internship_offer_published_at ON internship_offer(published_at DESC);
+
 -- Lien magique / token unique par formulaire
 -- (auth choisie : pas de compte côté étudiant/entreprise)
 CREATE TABLE access_token (

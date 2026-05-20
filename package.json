@@ -12,6 +12,7 @@
     "compose:up": "docker compose up -d --build",
     "compose:ui": "docker compose up -d --build ui",
     "import:companies": "docker compose exec api node dist/import-companies-cli.js",
+    "seed:company-users": "docker compose exec api node dist/seed-company-users-cli.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",

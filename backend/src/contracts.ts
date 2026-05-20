@@ -114,3 +114,34 @@ export type LinkToken = {
   label: string;
   createdAt: string;
 };
+
+export type InternshipOfferType = "stage" | "alternance" | "emploi" | "vie";
+
+export interface InternshipOfferCompanySummary {
+  id: string;
+  name: string;
+  tradeName?: string;
+  city?: string;
+  sector?: string;
+  website?: string;
+}
+
+export interface InternshipOffer {
+  id: string;
+  companyId: string;
+  title: string;
+  description: string;
+  offerType: InternshipOfferType;
+  location?: string;
+  contractLabel?: string;
+  duration?: string;
+  startDate?: string;
+  contactEmail?: string;
+  publishedAt: string;
+  updatedAt: string;
+  createdByEmail?: string;
+}
+
+export interface InternshipOfferPublic extends InternshipOffer {
+  company: InternshipOfferCompanySummary;
+}

@@ -77,6 +77,23 @@ import {
   verifyStaffPassword,
 } from "./staff-auth.js";
 import type { AdminJwtPayload } from "./staff-auth.js";
+import {
+  findCompanyUserByEmail,
+  signCompanyJwt,
+  touchCompanyUserLastLogin,
+  verifyCompanyJwt,
+  verifyCompanyPassword,
+  companyUserFromPayload,
+} from "./company-auth.js";
+import type { CompanyJwtPayload } from "./company-auth.js";
+import { loadCompanyWithContacts, updateCompanyRecord } from "./company-persistence.js";
+import {
+  createInternshipOffer,
+  deleteInternshipOffer,
+  listCompanyInternshipOffers,
+  listPublicInternshipOffers,
+  normalizeOfferType,
+} from "./internship-offers.js";
 import path from "node:path";
 
 const { Pool } = pg;
@@ -93,6 +110,7 @@ const FRONTEND_ORIGINS = (
   .map((s) => s.trim())
   .filter(Boolean);
 const COOKIE_NAME = "admin_session";
+const COMPANY_COOKIE_NAME = "company_session";
 
 if (!DATABASE_URL) {
   console.error("DATABASE_URL manquant — copiez backend/.env.example vers backend/.env");
@@ -156,6 +174,22 @@ function requireStaffAdmin(req: express.Request, res: express.Response, next: ex
     return;
   }
   (req as express.Request & { staff?: AdminJwtPayload }).staff = payload;
+  next();
+}
+
+function readCompanySession(req: express.Request): CompanyJwtPayload | null {
+  const raw = req.cookies?.[COMPANY_COOKIE_NAME];
+  if (!raw) return null;
+  return verifyCompanyJwt(raw, JWT_SECRET);
+}
+
+function requireCompanyAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const payload = readCompanySession(req);
+  if (!payload) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+  (req as express.Request & { companyUser?: CompanyJwtPayload }).companyUser = payload;
   next();
 }
 
@@ -306,6 +340,172 @@ app.get("/api/auth/me", (req, res) => {
       role: payload.role,
     },
   });
+});
+
+// ——— Espace entreprise (comptes RH) ———
+app.post("/api/company-auth/login", async (req, res) => {
+  const body = req.body as { email?: string; password?: string };
+  const email = body.email?.trim() ?? "";
+  const password = body.password ?? "";
+  if (!email || !password) {
+    res.status(400).json({ error: "Email et mot de passe requis" });
+    return;
+  }
+
+  try {
+    const account = await findCompanyUserByEmail(pool, email);
+    if (!account || !(await verifyCompanyPassword(password, account.passwordHash))) {
+      res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      return;
+    }
+
+    await touchCompanyUserLastLogin(pool, account.id);
+    const token = signCompanyJwt(account, JWT_SECRET);
+    res.cookie(COMPANY_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 14 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+    res.json({
+      ok: true,
+      user: {
+        email: account.email,
+        contactName: account.contactName,
+        companyId: account.companyId,
+        companyName: account.companyName,
+      },
+    });
+  } catch (e) {
+    console.error("POST /api/company-auth/login", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.post("/api/company-auth/logout", (_req, res) => {
+  res.clearCookie(COMPANY_COOKIE_NAME, { path: "/" });
+  res.json({ ok: true });
+});
+
+app.get("/api/company-auth/me", async (req, res) => {
+  const payload = readCompanySession(req);
+  if (!payload) {
+    res.status(401).json({ ok: false });
+    return;
+  }
+  try {
+    const company = await loadCompanyWithContacts(pool, payload.companyId);
+    if (!company) {
+      res.status(404).json({ error: "Entreprise introuvable" });
+      return;
+    }
+    res.json({
+      ok: true,
+      user: companyUserFromPayload(payload),
+      company,
+    });
+  } catch (e) {
+    console.error("GET /api/company-auth/me", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.patch("/api/company-portal/company", requireCompanyAuth, async (req, res) => {
+  const payload = (req as express.Request & { companyUser?: CompanyJwtPayload }).companyUser!;
+  const body = req.body as Partial<Company>;
+  try {
+    const updated = await updateCompanyRecord(pool, payload.companyId, body);
+    if (!updated) {
+      res.status(404).json({ error: "Entreprise introuvable" });
+      return;
+    }
+    res.json(updated);
+  } catch (e) {
+    if (e instanceof Error && e.message === "NAME_COUNTRY_REQUIRED") {
+      res.status(400).json({ error: "Nom légal et pays sont obligatoires" });
+      return;
+    }
+    console.error("PATCH /api/company-portal/company", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.get("/api/internship-offers", async (_req, res) => {
+  try {
+    const offers = await listPublicInternshipOffers(pool);
+    res.json(offers);
+  } catch (e) {
+    console.error("GET /api/internship-offers", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.get("/api/company-portal/internship-offers", requireCompanyAuth, async (req, res) => {
+  const payload = (req as express.Request & { companyUser?: CompanyJwtPayload }).companyUser!;
+  try {
+    const offers = await listCompanyInternshipOffers(pool, payload.companyId);
+    res.json(offers);
+  } catch (e) {
+    console.error("GET /api/company-portal/internship-offers", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.post("/api/company-portal/internship-offers", requireCompanyAuth, async (req, res) => {
+  const payload = (req as express.Request & { companyUser?: CompanyJwtPayload }).companyUser!;
+  const body = req.body as Record<string, unknown>;
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  if (!title || title.length < 3) {
+    res.status(400).json({ error: "Le titre est obligatoire (3 caractères minimum)." });
+    return;
+  }
+  if (!description || description.length < 20) {
+    res.status(400).json({ error: "La description est obligatoire (20 caractères minimum)." });
+    return;
+  }
+  const offerType = normalizeOfferType(body.offerType);
+  if (body.offerType !== undefined && body.offerType !== null && !offerType) {
+    res.status(400).json({ error: "Type d'offre invalide." });
+    return;
+  }
+  try {
+    const offer = await createInternshipOffer(pool, payload.companyId, {
+      title,
+      description,
+      offerType: offerType ?? "stage",
+      location: typeof body.location === "string" ? body.location : undefined,
+      contractLabel: typeof body.contractLabel === "string" ? body.contractLabel : undefined,
+      duration: typeof body.duration === "string" ? body.duration : undefined,
+      startDate: typeof body.startDate === "string" ? body.startDate : undefined,
+      contactEmail: typeof body.contactEmail === "string" ? body.contactEmail : undefined,
+      createdByEmail: payload.email,
+    });
+    res.status(201).json(offer);
+  } catch (e) {
+    console.error("POST /api/company-portal/internship-offers", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.delete("/api/company-portal/internship-offers/:id", requireCompanyAuth, async (req, res) => {
+  const payload = (req as express.Request & { companyUser?: CompanyJwtPayload }).companyUser!;
+  const offerId = req.params.id;
+  if (!offerId || typeof offerId !== "string") {
+    res.status(400).json({ error: "Identifiant d'offre manquant." });
+    return;
+  }
+  try {
+    const deleted = await deleteInternshipOffer(pool, payload.companyId, offerId);
+    if (!deleted) {
+      res.status(404).json({ error: "Offre introuvable." });
+      return;
+    }
+    res.status(204).send();
+  } catch (e) {
+    console.error("DELETE /api/company-portal/internship-offers/:id", e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 app.get("/api/admin/staff-users", requireStaffAdmin, async (_req, res) => {

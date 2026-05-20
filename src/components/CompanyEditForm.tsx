@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import type { Company } from "@/lib/types";
 import { upsertCompany } from "@/services/companies";
+import { updatePortalCompany } from "@/services/company-portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +13,11 @@ type Props = {
   company: Company;
   onCancel: () => void;
   onSaved: (c: Company) => void;
+  /** Enregistrement via l’API espace entreprise (session RH). */
+  portalMode?: boolean;
 };
 
-export function CompanyEditForm({ company, onCancel, onSaved }: Props) {
+export function CompanyEditForm({ company, onCancel, onSaved, portalMode = false }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState(company.name);
   const [tradeName, setTradeName] = useState(company.tradeName ?? "");
@@ -90,7 +93,7 @@ export function CompanyEditForm({ company, onCancel, onSaved }: Props) {
         },
       ].filter((x) => x.email.length > 0);
 
-      return upsertCompany({
+      const payload = {
         id: company.id,
         name: name.trim(),
         country: country.trim(),
@@ -105,13 +108,19 @@ export function CompanyEditForm({ company, onCancel, onSaved }: Props) {
         city: city.trim(),
         website: website.trim(),
         contacts,
-      });
+      };
+
+      return portalMode ? updatePortalCompany(payload) : upsertCompany(payload);
     },
     onSuccess: (c) => {
-      qc.invalidateQueries({ queryKey: ["companies"] });
-      qc.invalidateQueries({ queryKey: ["company", company.id] });
-      qc.invalidateQueries({ queryKey: ["declarations"] });
-      qc.invalidateQueries({ queryKey: ["merged"] });
+      if (!portalMode) {
+        qc.invalidateQueries({ queryKey: ["companies"] });
+        qc.invalidateQueries({ queryKey: ["company", company.id] });
+        qc.invalidateQueries({ queryKey: ["declarations"] });
+        qc.invalidateQueries({ queryKey: ["merged"] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["company-portal"] });
+      }
       toast.success("Fiche entreprise mise à jour.");
       onSaved(c);
     },
